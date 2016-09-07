@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH --export=ALL --job-name=igor_slurm_test --time=4:00:00 --mem=512M
+#SBATCH --error=job.%J.err --output=job.%J.out
+#SBATCH -n 40 --qos=parallel --partition=normal
+#
+. /opt/intel/impi/3.2.2.006/bin64/mpivars.sh
+unset SLURM_JOBID
+#
+### File with the available nodes for this job
+MACHINEFILE="nodes.$SLURM_JOB_ID"
+hostname -s > $MACHINEFILE
+scontrol show hostname ${SLURM_NODELIST} | grep -v $( hostname -s ) >> $MACHINEFILE
+#
+### Launch job
+mpirun -n $SLURM_NTASKS -f $MACHINEFILE -r ssh ./plares.py
+#
+### Cleaning
+rm $MACHINEFILE
+#
