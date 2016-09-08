@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.special import jn_zeros,jn,j1
-import fimera as chimera
+import chimera.moduls.fimera as chimera
 
 class Solver:
 	def __init__(self,solver_in):
