@@ -1,8 +1,7 @@
 import numpy as np
 from inspect import getargspec
 from cox_transport import *
-from lib_names import *
-import fimera as chimera
+import chimera.moduls.fimera as chimera
 
 class Specie:
 	def __init__(self,PartSpcs):
