@@ -38,9 +38,15 @@ class Specie:
 			  np.random.rand(self.Num_p),\
 			  np.random.rand(self.Num_p),\
 			  np.exp(2.j*np.pi*np.random.rand(self.Num_p)))
+		else:
+			self.Num_p = 0
+
+		if 'Density' in self.Configs:
+			self.wght0 = self.Configs['Charge']*self.Configs['Density']*dr*dx*2*np.pi/self.Num_p
+		else:
+			self.wght0 = 0
 
 		self.push_fact = 2*np.pi*self.Configs['Charge']/self.Configs['Mass']
-		self.wght0 = self.Configs['Charge']*self.Configs['Density']*dr*dx*2*np.pi/self.Num_p
 
 		self.Args = {'Nx':Nx,'Nr':Nr,'Xgrid':Xgrid,'Rgrid':Rgrid,'leftX':leftX,'rightX':rightX,\
 		  'lowerR':(Rgrid*(Rgrid>=0)).min(),'upperR':Rgrid.max(),'dx':dx,'dr':dr,'NpSlice':Nx*self.Num_p}
