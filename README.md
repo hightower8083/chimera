@@ -2,7 +2,7 @@
 
 by Igor A Andriyash (<igor.andriyash@gmail.com>)
 
-CHIMERA is a relativistic electromagnetic particle-in-cell code, based on a quasi-cylindric pseudo-spectral analitical time domain (PSATD) Maxwell solver.
+CHIMERA is a relativistic electromagnetic particle-in-cell code, based on a quasi-cylindric pseudo-spectral analytical time domain (PSATD) Maxwell solver.
 
 System requirements
 - code runs under Linux or MacOS
