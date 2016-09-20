@@ -47,7 +47,7 @@ class ChimeraRun():
 	def project_density(self):
 		for solver in self.Solvers:
 			if 'SpaceCharge' not in solver.Configs['Features']: continue
-			solver.vec_fb_aux0[:] = solver.vec_fb_aux1
+			solver.vec_fb_aux0[:] = solver.vec_fb_aux1.copy()
 			self.dep_dens_on_grid(solver)
 			solver.fb_dens_in()
 
@@ -271,7 +271,6 @@ class ChimeraRun():
 				solver.vec_fb[:] = 0.0
 				if 'SpaceCharge' in solver.Configs['Features']:
 					solver.vec_fb_aux0[:] = 0.0
-					solver.vec_fb_aux1[:] = 0.0
 
 	def chunk_particles(self,istep=0):
 		for species in self.Particles:
