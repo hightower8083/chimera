@@ -211,6 +211,20 @@ class Solver:
 			self.CPSATD2[:,:,:,3] = (1-np.cos(dt*w)-dt*w*np.sin(dt*w))/w**2/dt
 			self.CPSATD2[:,:,:,4] = (np.cos(dt*w)-1)/w**2/dt
 
+	def maxwell_solver_init(self,px0):
+		if 'SpaceCharge' not in self.Configs['Features']: return
+		beta0 = px0/np.sqrt(1+px0**2)
+		kx_g,w = self.Args['kx_g'],self.Args['w']
+		CPSATD1 = np.zeros(w.shape+(2,),dtype='complex',order='F')
+		CPSATD2 = np.zeros(w.shape+(2,),dtype='complex',order='F')
+
+		kx_g = beta0*kx_g[:,:,None]
+		CPSATD1[:,:,:,0] = 1.j*kx_g/(w**2-kx_g**2)
+		CPSATD1[:,:,:,1] = -1./(w**2-kx_g**2)
+		CPSATD2[:,:,:,0] = w**2/(w**2-kx_g**2)
+		CPSATD2[:,:,:,1] = 1.j*kx_g/(w**2-kx_g**2)
+		self.EG_fb = chimera.maxwell_init_push(self.EG_fb,self.vec_fb,self.vec_fb_aux1,CPSATD1,CPSATD2)
+
 	def maxwell_solver(self):
 		if 'SpaceCharge' in self.Configs['Features']:
 			self.EG_fb = chimera.maxwell_push_with_spchrg(self.EG_fb,self.vec_fb,self.vec_fb_aux0,self.vec_fb_aux1,self.CPSATD1,self.CPSATD2)
@@ -349,19 +363,6 @@ class Solver:
 		  self.Args['kx'],filt)
 		self.B2G_FBRot()
 
-	def maxwell_solver_init(self,px0):
-		if 'SpaceCharge' not in self.Configs['Features']: return
-		beta0 = px0/np.sqrt(1+px0**2)
-		kx_g,w = self.Args['kx_g'],self.Args['w']
-		CPSATD1 = np.zeros(w.shape+(2,),dtype='complex',order='F')
-		CPSATD2 = np.zeros(w.shape+(2,),dtype='complex',order='F')
-
-		kx_g = beta0*kx_g[:,:,None]
-		CPSATD1[:,:,:,0] = 1.j*kx_g/(w**2-kx_g**2)
-		CPSATD1[:,:,:,1] = -1./(w**2-kx_g**2)
-		CPSATD2[:,:,:,0] = w**2/(w**2-kx_g**2)
-		CPSATD2[:,:,:,1] = 1.j*kx_g/(w**2-kx_g**2)
-		self.EG_fb = chimera.maxwell_init_push(self.EG_fb,self.vec_fb,self.vec_fb_aux1,CPSATD1,CPSATD2)
 
 	def FBRot(self,vec_in):
 		if 'KxShift' in self.Configs:
