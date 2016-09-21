@@ -27,8 +27,6 @@ class Solver:
 			kx0 = 0.0
 
 		if 'Xchunked' in self.Configs:
-#			from os import environ
-#			nthrds = int(environ['OMP_NUM_THREADS'])
 			nthrds = self.Configs['Xchunked'][0]
 			Nxchunk = 2*int(np.round(0.5/nthrds/dx*(rightX - leftX)))
 			Nx = Nxchunk*nthrds
@@ -165,7 +163,7 @@ class Solver:
 		self.vec_fb_aux = np.zeros((Nx,Nkr,Mtot,3),dtype='complex',order='F')
 		self.scl_fb     = np.zeros((Nx,Nkr,Mtot  ),dtype='complex',order='F')
 
-		if 'SpaceCharge' in self.Configs['Features']:
+		if 'SpaceCharge' in self.Configs['Features'] or 'StaticKick' in self.Configs['Features']:
 			print 'Space charge is added'
 			self.vec_fb_aux0 = np.zeros((Nx,Nkr,Mtot,3),dtype='complex',order='F')
 			self.vec_fb_aux1 = np.zeros((Nx,Nkr,Mtot,3),dtype='complex',order='F')
@@ -205,6 +203,13 @@ class Solver:
 			self.CPSATD2[:,:,:,2] = 1-np.cos(dt*w)
 
 		if 'SpaceCharge' in self.Configs['Features']:
+
+#			self.CPSATD1[:,:,:,3] = 0.5*(np.cos(dt*w)-1)/w**2
+#			self.CPSATD1[:,:,:,4] = 0.5*(np.cos(dt*w)-1)/w**2
+
+#			self.CPSATD2[:,:,:,3] = -0.5*np.sin(dt*w)/w
+#			self.CPSATD2[:,:,:,4] = -0.5*np.sin(dt*w)/w
+
 			self.CPSATD1[:,:,:,3] = (dt*w*np.cos(dt*w)-np.sin(dt*w))/w**3/dt
 			self.CPSATD1[:,:,:,4] = (np.sin(dt*w)-dt*w)/w**3/dt
 
@@ -212,7 +217,7 @@ class Solver:
 			self.CPSATD2[:,:,:,4] = (np.cos(dt*w)-1)/w**2/dt
 
 	def maxwell_solver_init(self,px0):
-		if 'SpaceCharge' not in self.Configs['Features']: return
+		if 'SpaceCharge' not in self.Configs['Features'] and 'StaticKick' not in self.Configs['Features']: return
 		beta0 = px0/np.sqrt(1+px0**2)
 		kx_g,w = self.Args['kx_g'],self.Args['w']
 		CPSATD1 = np.zeros(w.shape+(2,),dtype='complex',order='F')

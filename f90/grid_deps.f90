@@ -128,6 +128,69 @@ endif
 
 end subroutine
 
+subroutine dep_dens_cntr(coord,wght,dens,leftX,Rgrid,dx_inv,dr_inv,&
+                    np,nx,nr,nkO)
+implicit none
+integer, intent(in)        :: np,nx,nr,nkO
+real (kind=8), intent(in)  :: coord(3,np),wght(np),leftX,Rgrid(0:nr),&
+                              dx_inv,dr_inv
+complex(kind=8),intent(inout):: dens(0:nx,0:nr,0:nkO)
+integer         :: ix,ir,ip,k,iO
+real(kind=8)    :: xp,yp,zp,rp,wp,S0(0:1,2), dens_p(0:1,0:1)
+complex(kind=8) :: ii=(0.0d0,1.0d0),phaseO(0:nkO),phase_m
+
+!f2py intent(in) :: coord,wght,leftX,Rgrid,dx_inv,dr_inv
+!f2py intent(in,out) :: dens
+!f2py intent(hide) :: np,nx,nr,nkO
+
+do ip=1,np
+  wp = wght(ip)
+  if (wp == 0.0) CYCLE
+  xp = coord(1,ip)
+  yp = coord(2,ip)
+  zp = coord(3,ip)
+  rp = DSQRT(yp*yp+zp*zp)
+  if (rp>=Rgrid(nr)) CYCLE
+
+  ix = FLOOR((xp-leftX)*dx_inv)
+  ir = FLOOR((rp-Rgrid(0))*dr_inv)
+
+  S0 = 0.0d0
+  S0(1,1) = (xp-leftX)*dx_inv - ix
+  S0(0,1) = 1.0d0 -S0(1,1)
+  S0(1,2) = (rp-Rgrid(ir))*dr_inv
+  S0(0,2) = 1.0d0 -S0(1,2)
+
+  if (rp>0.0) then
+    phase_m = (yp-ii*zp)/rp
+  else
+    phase_m = 0.0d0
+  endif
+
+  phaseO(0) = 1.0d0
+  if (nkO>0) then
+    do iO = 1,nkO
+      phaseO(iO) = phaseO(iO-1)*phase_m
+    enddo
+  endif
+
+  do k = 0,1
+    dens_p(:,k) = S0(:,1)*S0(k,2)*wp
+  enddo
+
+  do iO = 0,nkO
+    dens(ix:ix+1,ir:ir+1,iO) = dens(ix:ix+1,ir:ir+1,iO)+ phaseO(iO)*dens_p
+  enddo
+enddo
+
+if (Rgrid(0)<0) then
+  dens(:,1,0) = dens(:,1,0) + dens(:,0,0)
+  if (nkO>0) dens(:,1,1:nkO) = dens(:,2,1:nkO)/9.0d0
+  dens(:,0,:) = 0.0
+endif
+
+end subroutine
+
 subroutine proj_fld(coord,Fld,Fld_tot,leftX,Rgrid,dx_inv,&
                              dr_inv,np,nx,nr,nkO)
 implicit none
