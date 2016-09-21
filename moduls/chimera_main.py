@@ -151,16 +151,17 @@ class ChimeraRun():
 			  solver.Args['leftX'],*solver.Args['DepProj'])
 		solver.fb_dens_in()
 
-#		solver.vec_fb[:] = 0.0
-#		if species.particles.shape[1] == 0 or 'Still' in species.Configs['Features']: return
-#		if 'Xchunked' in species.Configs:
-#			solver.vec_spc = chimera.dep_curr_chnk(species.particles,\
-#			  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
-#			  solver.Args['leftX'],*solver.Args['DepProj'])
-#		else:
-#			solver.vec_spc = chimera.dep_curr(species.particles,\
-#			  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
-	#	solver.fb_curr_in()
+		solver.vec_fb[:] = 0.0
+		solver.vec_spc[:] = 0.0
+		if species.particles.shape[1] == 0 or 'Still' in species.Configs['Features']: return
+		if 'Xchunked' in species.Configs:
+			solver.vec_spc = chimera.dep_curr_chnk(species.particles,\
+			  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
+			  solver.Args['leftX'],*solver.Args['DepProj'])
+		else:
+			solver.vec_spc = chimera.dep_curr(species.particles,\
+			  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
+		solver.fb_curr_in()
 
 	def get_static_kick(self,solver):
 		solver.EG_fb[:] = 0.0
@@ -168,6 +169,10 @@ class ChimeraRun():
 			self.dep_cntr_dens_curr_on_grid(solver,species)
 			PXmean = (species.particles[3]*species.particles[-1]).sum()/species.particles[-1].sum()
 			solver.maxwell_solver_init(PXmean)
+		solver.vec_fb[:] = 0.0
+		solver.scl_fb[:] = 0.0
+		solver.vec_fb_aux1[:] = 0.0
+		solver.vec_fb_aux[:] = 0.0
 
 	def move_frame(self,wind,istep):
 		if 'TimeActive' in wind:
