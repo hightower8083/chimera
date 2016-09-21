@@ -2,6 +2,7 @@ import numpy as np
 from inspect import getargspec
 from cox_transport import *
 import chimera.moduls.fimera as chimera
+from scipy.constants import m_e,c,e,epsilon_0
 
 class Specie:
 	def __init__(self,PartSpcs):
@@ -47,6 +48,7 @@ class Specie:
 			self.wght0 = 0
 
 		self.push_fact = 2*np.pi*self.Configs['Charge']/self.Configs['Mass']
+		self.weight2pC = 4*np.pi**2*m_e*c**2*epsilon_0*1e6/e
 
 		self.Args = {'Nx':Nx,'Nr':Nr,'Xgrid':Xgrid,'Rgrid':Rgrid,'leftX':leftX,'rightX':rightX,\
 		  'lowerR':(Rgrid*(Rgrid>=0)).min(),'upperR':Rgrid.max(),'dx':dx,'dr':dr,'NpSlice':Nx*self.Num_p}

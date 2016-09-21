@@ -41,12 +41,14 @@ class ChimeraRun():
 
 	def project_current(self):
 		for solver in self.Solvers:
+			if 'StaticKick' in solver.Configs['Features']: continue
 			self.dep_curr_on_grid(solver)
 			solver.fb_curr_in()
 
 	def project_density(self):
 		for solver in self.Solvers:
 			if 'SpaceCharge' not in solver.Configs['Features']: continue
+			if 'StaticKick' in solver.Configs['Features']: continue
 			solver.vec_fb_aux0[:] = solver.vec_fb_aux1.copy()
 			self.dep_dens_on_grid(solver)
 			solver.fb_dens_in()
@@ -54,9 +56,13 @@ class ChimeraRun():
 	def update_fields(self):
 		#self.re_psatd()
 		for solver in self.Solvers:
-			solver.poiss_corr()
-			solver.maxwell_solver()
-			solver.G2B_FBRot()
+			if 'StaticKick' in solver.Configs['Features']:
+				self.get_static_kick(solver)
+				solver.G2B_FBRot()
+			else:
+				solver.poiss_corr()
+				solver.maxwell_solver()
+				solver.G2B_FBRot()
 
 	def project_fields(self):
 		for solver in self.Solvers:
@@ -132,6 +138,37 @@ class ChimeraRun():
 					solver.bg_spc = chimera.dep_dens(species.particles,solver.bg_spc,\
 					  solver.Args['leftX'],*solver.Args['DepProj'])
 
+	def dep_cntr_dens_curr_on_grid(self,solver,species):
+		solver.scl_spc[:] = 0.0
+		solver.scl_fb[:] = 0.0
+		solver.vec_fb_aux1[:] = 0.0
+		if species.particles.shape[1]==0: return
+		if 'Xchunked' in species.Configs:
+			solver.scl_spc = chimera.dep_dens_cntr_chnk(species.particles_cntr,species.particles[-1],solver.scl_spc,\
+			  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+		else:
+			solver.scl_spc = chimera.dep_dens_cntr(species.particles_cntr,species.particles[-1],solver.scl_spc,\
+			  solver.Args['leftX'],*solver.Args['DepProj'])
+		solver.fb_dens_in()
+
+#		solver.vec_fb[:] = 0.0
+#		if species.particles.shape[1] == 0 or 'Still' in species.Configs['Features']: return
+#		if 'Xchunked' in species.Configs:
+#			solver.vec_spc = chimera.dep_curr_chnk(species.particles,\
+#			  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
+#			  solver.Args['leftX'],*solver.Args['DepProj'])
+#		else:
+#			solver.vec_spc = chimera.dep_curr(species.particles,\
+#			  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
+	#	solver.fb_curr_in()
+
+	def get_static_kick(self,solver):
+		solver.EG_fb[:] = 0.0
+		for species in self.Particles:
+			self.dep_cntr_dens_curr_on_grid(solver,species)
+			PXmean = (species.particles[3]*species.particles[-1]).sum()/species.particles[-1].sum()
+			solver.maxwell_solver_init(PXmean)
+
 	def move_frame(self,wind,istep):
 		if 'TimeActive' in wind:
 			WindInterval = wind['TimeActive']
@@ -154,7 +191,9 @@ class ChimeraRun():
 			shiftX = vw*wind['TimeStep']*wind['Steps']
 
 		if 'AbsorbLayer' in wind and wind['AbsorbLayer']>0:
-			for solver in self.Solvers: solver.absorb_field(wind['AbsorbLayer'],'left')
+			for solver in self.Solvers:
+				if 'StaticKick' in solver.Configs['Features']: continue
+				solver.absorb_field(wind['AbsorbLayer'],'left')
 
 		for comp in self.Solvers+self.Particles:
 			comp.Args['Xgrid']  += shiftX
@@ -193,6 +232,7 @@ class ChimeraRun():
 				if species.particles.shape[1] != 0: species.chunk_coords()
 		if 'AbsorbLayer' or 'AddPlasma' in wind:
 			for solver in self.Solvers:
+				if 'StaticKick' in solver.Configs['Features']: continue
 				if 'SpaceCharge' in solver.Configs['Features']:
 					if 'StillAsBackground' in solver.Configs['Features']:	self.dep_bg_on_grid(solver)
 					self.dep_dens_on_grid(solver)
@@ -222,7 +262,7 @@ class ChimeraRun():
 
 	def get_init_fields(self):
 		for solver in self.Solvers:
-			if 'SpaceCharge' not in solver.Configs['Features']: continue
+			if 'SpaceCharge' not in solver.Configs['Features'] and 'StaticKick' not in solver.Configs['Features']: continue
 			print 'adding inits'
 			for species in self.Particles:
 				solver.vec_spc[:] = 0.0
@@ -269,8 +309,7 @@ class ChimeraRun():
 				solver.scl_spc[:] = 0.0
 				solver.scl_fb[:] = 0.0
 				solver.vec_fb[:] = 0.0
-				if 'SpaceCharge' in solver.Configs['Features']:
-					solver.vec_fb_aux0[:] = 0.0
+				if 'SpaceCharge' in solver.Configs['Features']:	solver.vec_fb_aux0[:] = 0.0
 
 	def chunk_particles(self,istep=0):
 		for species in self.Particles:
