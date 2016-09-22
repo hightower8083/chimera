@@ -69,12 +69,16 @@ class ChimeraRun():
 			solver.fb_fld_out()
 			for species in self.Particles:
 				if species.particles.shape[1]==0 or 'Still' in species.Configs['Features']: continue
-				if 'KxShift' in solver.Configs:
-					species.EB = chimera.proj_fld_env(species.particles,solver.EB,\
+				if 'StaticKick' in solver.Configs['Features']:
+					species.EB = chimera.proj_fld_cntr(species.particles_cntr,species.particles[-1],solver.EB,\
 					  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					species.EB = chimera.proj_fld(species.particles,solver.EB,\
-					  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
+					if 'KxShift' in solver.Configs:
+						species.EB = chimera.proj_fld_env(species.particles,solver.EB,\
+						  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
+					else:
+						species.EB = chimera.proj_fld(species.particles,solver.EB,\
+						  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_curr_on_grid(self,solver):
 		solver.vec_spc[:] = 0.0
