@@ -19,9 +19,9 @@ do ip=1,np
     Fld_p = Fld(:,ip)
 
     Um = coord_p(4:6) + 0.5*dt*Fld_p(1:3)
-    gamma = SQRT(1+SUM(Um**2))
+    gamma = SQRT(1.0+SUM(Um*Um))
     t =  0.5*dt*Fld_p(4:6)/gamma
-    t2 = SUM(t**2)
+    t2 = SUM(t*t)
     s = 2*t/(1+t2)
 
     U0(1) = Um(1) + Um(2)*t(3) - Um(3)*t(2)
@@ -32,8 +32,8 @@ do ip=1,np
     Up(2) = Um(2) -  U0(1)*s(3) + U0(3)*s(1)
     Up(3) = Um(3) +  U0(1)*s(2) - U0(2)*s(1)
 
-    coord_p(4:6) = Up(:) + 0.5*dt*Fld_p(1:3)
-    coord_p(7) = SQRT(1.0+SUM(coord_p(4:6)**2))
+    coord_p(4:6) = Up + 0.5*dt*Fld_p(1:3)
+    coord_p(7) = SQRT(1.0+SUM(coord_p(4:6)*coord_p(4:6)))
 
     coord(1:7,ip) = coord_p(1:7)
   endif 
