@@ -324,8 +324,8 @@ class Solver:
 			  np.exp(-0.25*(kx_g-k0)**2*S['Lx']**2 -0.25*kr_g[:,:,self.Args['Nko']]**2*S['LR']**2 )
 			DT = -1.j*w
 		else:
-			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# cos laser phase
-			self.scl_spc[:,:,0] = a0*np.cos(k0*(Xgrid[:,None]-S['x0']))*\
+			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# sin laser phase
+			self.scl_spc[:,:,0] = a0*np.sin(k0*(Xgrid[:,None]-S['x0']))*\
 			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2-Rgrid[None,:]**2/S['LR']**2)*\
 			  (abs(Xgrid[:,None]-S['x0'])<3.5*S['Lx'])*(abs(Rgrid[None,:])<3.5*S['LR'])
 			self.scl_spc[:,0,0] = 0.0
