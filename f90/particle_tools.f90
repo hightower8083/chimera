@@ -15,28 +15,27 @@ integer:: ip
 !$omp do schedule(static)
 do ip=1,np
   coord_p = coord(:,ip)
-  if (coord_p(8) .ne. 0.) then
-    Fld_p = Fld(:,ip)
+  if (coord_p(8)==0.0) CYCLE
+  Fld_p = Fld(:,ip)
 
-    Um = coord_p(4:6) + 0.5*dt*Fld_p(1:3)
-    gamma = SQRT(1.0+SUM(Um*Um))
-    t =  0.5*dt*Fld_p(4:6)/gamma
-    t2 = SUM(t*t)
-    s = 2*t/(1+t2)
+  Um = coord_p(4:6) + 0.5*dt*Fld_p(1:3)
+  gamma = SQRT(1.0+SUM(Um*Um))
+  t =  0.5*dt*Fld_p(4:6)/gamma
+  t2 = SUM(t*t)
+  s = 2*t/(1+t2)
 
-    U0(1) = Um(1) + Um(2)*t(3) - Um(3)*t(2)
-    U0(2) = Um(2) - Um(1)*t(3) + Um(3)*t(1)
-    U0(3) = Um(3) + Um(1)*t(2) - Um(2)*t(1)
+  U0(1) = Um(1) + Um(2)*t(3) - Um(3)*t(2)
+  U0(2) = Um(2) - Um(1)*t(3) + Um(3)*t(1)
+  U0(3) = Um(3) + Um(1)*t(2) - Um(2)*t(1)
 
-    Up(1) = Um(1) +  U0(2)*s(3) - U0(3)*s(2)
-    Up(2) = Um(2) -  U0(1)*s(3) + U0(3)*s(1)
-    Up(3) = Um(3) +  U0(1)*s(2) - U0(2)*s(1)
+  Up(1) = Um(1) +  U0(2)*s(3) - U0(3)*s(2)
+  Up(2) = Um(2) -  U0(1)*s(3) + U0(3)*s(1)
+  Up(3) = Um(3) +  U0(1)*s(2) - U0(2)*s(1)
 
-    coord_p(4:6) = Up + 0.5*dt*Fld_p(1:3)
-    coord_p(7) = SQRT(1.0+SUM(coord_p(4:6)*coord_p(4:6)))
+  coord_p(4:6) = Up + 0.5*dt*Fld_p(1:3)
+  coord_p(7) = SQRT(1.0+SUM(coord_p(4:6)*coord_p(4:6)))
 
-    coord(1:7,ip) = coord_p(1:7)
-  endif 
+  coord(1:7,ip) = coord_p(1:7)
 enddo
 !$omp end do
 !$omp end parallel
@@ -58,13 +57,12 @@ integer:: ip
 !$omp parallel do shared(coord,coord_cntr,dt,np) private(ip,coord_p,coord_cntr_p)
 do ip=1,np
   coord_p = coord(:,ip)
-  if (coord_p(8) .ne. 0.) then
-    coord_cntr_p = coord_p(1:3)
-    coord_p(1:3) = coord_p(1:3)+ dt*coord_p(4:6)/coord_p(7)
-    coord_cntr_p =  0.5*(coord_cntr_p+coord_p(1:3))
-    coord(:,ip) = coord_p
-    coord_cntr(:,ip) = coord_cntr_p
-  endif
+  if (coord_p(8)==0.0) CYCLE
+  coord_cntr_p = coord_p(1:3)
+  coord_p(1:3) = coord_p(1:3)+ dt*coord_p(4:6)/coord_p(7)
+  coord_cntr_p =  0.5*(coord_cntr_p+coord_p(1:3))
+  coord(:,ip) = coord_p
+  coord_cntr(:,ip) = coord_cntr_p
 enddo
 !$omp end parallel do
 end subroutine
@@ -118,7 +116,6 @@ do ir=1,nr-1
   enddo
 enddo
 end subroutine
-
 
 subroutine sortpartsout(indx2stay,num2stay,coord,lims,np)
 implicit none

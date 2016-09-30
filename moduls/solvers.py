@@ -133,11 +133,25 @@ class Solver:
 
 		if 'KxShift' in self.Configs:
 			cutafter = 0.8
-			lowpass = lambda x : (x<cutafter)+(x>=cutafter)*np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
+			fu_bandpass = lambda x : (x<cutafter)+(x>=cutafter)*np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
+			filt_bandpass = fu_bandpass(np.abs(kx_env)/np.abs(kx_env.max()))[:,None,None]
+
+			filt_antialias = np.ones_like(filt_bandpass)
+			fu_antialias = lambda x,x0 :1-np.exp(-(x-x0)**2/((x0+1.)/Nx)**2)
+			cell_echos = np.abs(kx_env).max()/kx0*np.arange(20)-1.
+			full_band = np.array([kx.min()/kx0, kx.max()/kx0])-1.
+
+			for cellecho in cell_echos:
+				if cellecho>full_band[0] and cellecho<full_band[1]:
+					print 'possible grid echo is detected at', cellecho/abs(full_band).max()
+					if abs(cellecho)/abs(full_band).max()>0.3:
+						print 'will correct', cellecho/abs(full_band).max()
+						filt_antialias *= fu_antialias( kx/kx0-1, cellecho  )[:,None,None]
+					else:
+						print 'echo is close to resonance; no correction will be performed'
 
 			self.Args['CurrFact'] = np.asfortranarray((2*np.pi)**2/Nx*\
-			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*\
-			  lowpass(np.abs(kx_env)/np.abs(kx_env.max()))[:,None,None])
+			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass*filt_antialias)
 #			  np.cos(0.5*np.pi*np.abs(kx_env)/np.abs(kx_env.max()))[:,None,None]**2)
 			self.Args['DepProj'] = (Rgrid,1./dx,1./dr,kx0)
 			self.Args['FBCurrIn'] = (kx_env,InCurr)
