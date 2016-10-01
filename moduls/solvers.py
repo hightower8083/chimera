@@ -144,7 +144,9 @@ class Solver:
 			for cellecho in cell_echos:
 				if cellecho>full_band[0] and cellecho<full_band[1]:
 					print 'possible grid echo is detected at', cellecho/abs(full_band).max()
-					if abs(cellecho)/abs(full_band).max()>0.3:
+					if 'NoAntiEcho' in self.Configs['Features']:
+						continue
+					elif abs(cellecho)/abs(full_band).max()>0.4:
 						print 'will correct', cellecho/abs(full_band).max()
 						filt_antialias *= fu_antialias( kx/kx0-1, cellecho  )[:,None,None]
 					else:
@@ -152,7 +154,6 @@ class Solver:
 
 			self.Args['CurrFact'] = np.asfortranarray((2*np.pi)**2/Nx*\
 			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass*filt_antialias)
-#			  np.cos(0.5*np.pi*np.abs(kx_env)/np.abs(kx_env.max()))[:,None,None]**2)
 			self.Args['DepProj'] = (Rgrid,1./dx,1./dr,kx0)
 			self.Args['FBCurrIn'] = (kx_env,InCurr)
 			self.Args['FBIn']     = (kx_env,In)
