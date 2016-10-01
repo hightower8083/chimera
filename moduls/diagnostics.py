@@ -33,19 +33,18 @@ class Diagnostics:
 		if 'Return' in diag['Features']: ToReturn = []
 		for jj in range(len(self.Chimera.Solvers)):
 			if 'Return' in diag['Features']:
-				ToReturn.append(self.Chimera.Solvers[jj].EB[:,1:].copy())
+				ToReturn.append(self.Chimera.Solvers[jj].Data['EB'][:,1:].copy())
 			else:
-				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Solvers[jj].EB[:,1:])
+				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Solvers[jj].Data['EB'][:,1:])
 		if 'Return' in diag['Features']: return ToReturn
-
 
 	def fldfb_out(self,diag):
 		if 'Return' in diag['Features']: ToReturn = []
 		for jj in range(len(self.Chimera.Solvers)):
 			if 'Return' in diag['Features']:
-				ToReturn.append(self.Chimera.Solvers[jj].EG.copy())
+				ToReturn.append(self.Chimera.Solvers[jj].Data['EG_fb'].copy())
 			else:
-				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Solvers[jj].EG)
+				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Solvers[jj].Data['EG_fb'])
 		if 'Return' in diag['Features']: return ToReturn
 
 
@@ -75,12 +74,11 @@ class Diagnostics:
 				np.save(self.out_folder+'phs'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Particles[jj].particles)
 		if 'Return' in diag['Features']: return ToReturn
 
-
 	def nrg_out(self,diag):
 		if 'Return' in diag['Features']:	ToReturn = []
 		for jj in range(len(self.Chimera.Solvers)):
 			sol = self.Chimera.Solvers[jj]
-			dat = ((abs(sol.EG_fb[:,:,:,:3])**2).sum(-1)*sol.Args['EnergyFact']).sum(-1).sum(-1)
+			dat = ((abs(sol.Data['EG_fb'][:,:,:,:3])**2).sum(-1)*sol.Args['EnergyFact']).sum(-1).sum(-1)
 			dat = np.r_[dat[dat.shape[0]/2+1:], dat[:dat.shape[0]/2+1]]
 			if 'Return' in diag['Features']:
 				ToReturn.append(dat.copy())
@@ -95,7 +93,7 @@ class Diagnostics:
 		for jj in range(len(self.Chimera.Solvers)):
 			sol = self.Chimera.Solvers[jj]
 			Rgrid,dr,leftX = sol.Args['RgridFull'],sol.Args['dr'],sol.Args['leftX']
-			dat = chimera.fb_vec_out(sol.EG_fb[:,:,:,:3],sol.Args['leftX'],*sol.Args['FBoutFull'])
+			dat = chimera.fb_vec_out(sol.Data['EG_fb'][:,:,:,:3],sol.Args['leftX'],*sol.Args['FBoutFull'])
 
 			if 'Return' in diag['Features']:
 				if 'Spot' in diag['Features']:

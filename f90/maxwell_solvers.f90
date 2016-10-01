@@ -137,7 +137,7 @@ enddo
 !$omp end parallel
 end subroutine
 
-subroutine omp_mult(vec_fb,poiss_fact,nkx,nkr,nkO)
+subroutine omp_mult_vec(vec_fb,poiss_fact,nkx,nkr,nkO)
 implicit none
 integer, intent(in)            :: nkx,nkr,nkO
 complex(kind=8), intent(inout) :: vec_fb(nkx,nkr,nkO,3)
@@ -155,6 +155,28 @@ do iO=1,nkO
     do l=1,3
       vec_fb(:,ikr,iO,l) = vec_fb(:,ikr,iO,l)*poiss_fact(:,ikr,iO)
     enddo
+  enddo
+  !$omp end do
+enddo
+!$omp end parallel
+end subroutine
+
+subroutine omp_mult_scl(scl_fb,poiss_fact,nkx,nkr,nkO)
+implicit none
+integer, intent(in)            :: nkx,nkr,nkO
+complex(kind=8), intent(inout) :: scl_fb(nkx,nkr,nkO)
+real(kind=8),    intent(in)    :: poiss_fact(nkx,nkr,nkO)
+integer         :: l,ikr,iO
+
+!f2py intent(in) :: poiss_fact
+!f2py intent(in,out) :: scl_fb
+!f2py intent(hide) :: nkx,nkO,nkr
+
+!$omp parallel shared(scl_fb,poiss_fact,nkx,nkr,nkO) private(iO)
+do iO=1,nkO
+  !$omp do schedule(static) private(l,ikr)
+  do ikr=1,nkr
+    scl_fb(:,ikr,iO) = scl_fb(:,ikr,iO)*poiss_fact(:,ikr,iO)
   enddo
   !$omp end do
 enddo
