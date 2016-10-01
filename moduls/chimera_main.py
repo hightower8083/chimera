@@ -49,7 +49,7 @@ class ChimeraRun():
 		for solver in self.Solvers:
 			if 'SpaceCharge' not in solver.Configs['Features']: continue
 			if 'StaticKick' in solver.Configs['Features']: continue
-			solver.vec_fb_aux0[:] = solver.vec_fb_aux1.copy()
+			solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt'].copy()
 			self.dep_dens_on_grid(solver)
 			solver.fb_dens_in()
 
@@ -70,113 +70,109 @@ class ChimeraRun():
 			for species in self.Particles:
 				if species.particles.shape[1]==0 or 'Still' in species.Configs['Features']: continue
 				if 'StaticKick' in solver.Configs['Features']:
-					species.EB = chimera.proj_fld_cntr(species.particles_cntr,species.particles[-1],solver.EB,\
+					species.EB = chimera.proj_fld_cntr(species.particles_cntr,species.particles[-1],solver.Data['EB'],\
 					  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
 					if 'KxShift' in solver.Configs:
-						species.EB = chimera.proj_fld_env(species.particles,solver.EB,\
+						species.EB = chimera.proj_fld_env(species.particles,solver.Data['EB'],\
 						  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						species.EB = chimera.proj_fld(species.particles,solver.EB,\
+						species.EB = chimera.proj_fld(species.particles,solver.Data['EB'],\
 						  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_curr_on_grid(self,solver):
-		solver.vec_spc[:] = 0.0
+		solver.Data['J'][:] = 0.0
 		for species in self.Particles:
 			if species.particles.shape[1] == 0 or 'Still' in species.Configs['Features']: continue
 			if 'KxShift' in solver.Configs:
 				if 'Xchunked' in species.Configs:
-					solver.vec_spc = chimera.dep_curr_env_chnk(species.particles,\
-					  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
+					solver.Data['J'] = chimera.dep_curr_env_chnk(species.particles,\
+					  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 					  solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.vec_spc = chimera.dep_curr_env(species.particles,\
-					  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['J'] = chimera.dep_curr_env(species.particles,\
+					  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 			else:
 				if 'Xchunked' in species.Configs:
-					solver.vec_spc = chimera.dep_curr_chnk(species.particles,\
-					  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
+					solver.Data['J'] = chimera.dep_curr_chnk(species.particles,\
+					  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 					  solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.vec_spc = chimera.dep_curr(species.particles,\
-					  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['J'] = chimera.dep_curr(species.particles,\
+					  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_dens_on_grid(self,solver):
-		solver.scl_spc[:] = 0.0
+		solver.Data['Rho'][:] = 0.0
 		for species in self.Particles:
 			if species.particles.shape[1] == 0: continue
 			if 'Still' in species.Configs['Features'] and 'StillAsBackground' in solver.Configs['Features']:
-				solver.scl_spc += solver.bg_spc
+				solver.Data['Rho'] += solver.Data['BckGrndRho']
 			else:
 				if 'KxShift' in solver.Configs:
 					if 'Xchunked' in species.Configs:
-						solver.scl_spc = chimera.dep_dens_env_chnk(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.particles,solver.Data['Rho'],\
 						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.scl_spc = chimera.dep_dens_env(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens_env(species.particles,solver.Data['Rho'],\
 						  solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
 					if 'Xchunked' in species.Configs:
-						solver.scl_spc = chimera.dep_dens_chnk(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens_chnk(species.particles,solver.Data['Rho'],\
 						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.scl_spc = chimera.dep_dens(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens(species.particles,solver.Data['Rho'],\
 						  solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_bg_on_grid(self,solver):
-		solver.bg_spc[:] = 0.0
+		solver.Data['BckGrndRho'][:] = 0.0
 		for species in self.Particles:
 			if species.particles.shape[1] == 0 or 'Still' not in species.Configs['Features']: continue
 			if 'KxShift' in solver.Configs:
 				if 'Xchunked' in species.Configs:
-					solver.bg_spc = chimera.dep_dens_env_chnk(species.particles,solver.bg_spc,\
+					solver.Data['BckGrndRho'] = chimera.dep_dens_env_chnk(species.particles,solver.Data['BckGrndRho'],\
 					  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.bg_spc = chimera.dep_dens_env(species.particles,solver.bg_spc,\
+					solver.Data['BckGrndRho'] = chimera.dep_dens_env(species.particles,solver.Data['BckGrndRho'],\
 					  solver.Args['leftX'],*solver.Args['DepProj'])
 			else:
 				if 'Xchunked' in species.Configs:
-					solver.bg_spc = chimera.dep_dens_chnk(species.particles,solver.bg_spc,\
+					solver.Data['BckGrndRho'] = chimera.dep_dens_chnk(species.particles,solver.Data['BckGrndRho'],\
 					  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.bg_spc = chimera.dep_dens(species.particles,solver.bg_spc,\
+					solver.Data['BckGrndRho'] = chimera.dep_dens(species.particles,solver.Data['BckGrndRho'],\
 					  solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_cntr_dens_curr_on_grid(self,solver,species):
-		solver.scl_spc[:] = 0.0
-		solver.scl_fb[:] = 0.0
-		solver.vec_fb_aux1[:] = 0.0
+		solver.Data['Rho'][:] = 0.0
+		solver.Data['Rho_fb'][:] = 0.0
+		solver.Data['gradRho_fb_nxt'][:] = 0.0
 		if species.particles.shape[1]==0: return
 		if 'Xchunked' in species.Configs:
-			solver.scl_spc = chimera.dep_dens_cntr_chnk(species.particles_cntr,species.particles[-1],solver.scl_spc,\
+			solver.Data['Rho'] = chimera.dep_dens_cntr_chnk(species.particles_cntr,species.particles[-1],solver.Data['Rho'],\
 			  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 		else:
-			solver.scl_spc = chimera.dep_dens_cntr(species.particles_cntr,species.particles[-1],solver.scl_spc,\
+			solver.Data['Rho'] = chimera.dep_dens_cntr(species.particles_cntr,species.particles[-1],solver.Data['Rho'],\
 			  solver.Args['leftX'],*solver.Args['DepProj'])
 		solver.fb_dens_in()
 
-		solver.vec_fb[:] = 0.0
-		solver.vec_spc[:] = 0.0
+		solver.Data['J'][:] = 0.0
+		solver.Data['J_fb'][:] = 0.0
 		if species.particles.shape[1] == 0 or 'Still' in species.Configs['Features']: return
 		if 'Xchunked' in species.Configs:
-			solver.vec_spc = chimera.dep_curr_chnk(species.particles,\
-			  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
+			solver.Data['J'] = chimera.dep_curr_chnk(species.particles,\
+			  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 			  solver.Args['leftX'],*solver.Args['DepProj'])
 		else:
-			solver.vec_spc = chimera.dep_curr(species.particles,\
-			  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
+			solver.Data['J'] = chimera.dep_curr(species.particles,\
+			  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 		solver.fb_curr_in()
 
 	def get_static_kick(self,solver):
-		solver.EG_fb[:] = 0.0
+		solver.Data['EG_fb'][:] = 0.0
 		for species in self.Particles:
 			self.dep_cntr_dens_curr_on_grid(solver,species)
 			PXmean = (species.particles[3]*species.particles[-1]).sum()/species.particles[-1].sum()
 			solver.maxwell_solver_init(PXmean)
-		solver.vec_fb[:] = 0.0
-		solver.scl_fb[:] = 0.0
-		solver.vec_fb_aux1[:] = 0.0
-		solver.vec_fb_aux[:] = 0.0
 
 	def move_frame(self,wind,istep):
 		if 'TimeActive' in wind:
@@ -274,51 +270,51 @@ class ChimeraRun():
 			if 'SpaceCharge' not in solver.Configs['Features'] and 'StaticKick' not in solver.Configs['Features']: continue
 			print 'adding inits'
 			for species in self.Particles:
-				solver.vec_spc[:] = 0.0
-				solver.scl_spc[:] = 0.0
+				solver.Data['J'][:] = 0.0
+				solver.Data['Rho'][:] = 0.0
 				if species.particles.shape[1]==0: continue
 
 				if 'KxShift' in solver.Configs:
 					if 'Xchunked' in species.Configs:
-						solver.scl_spc = chimera.dep_dens_env_chnk(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.particles,solver.Data['Rho'],\
 						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.scl_spc = chimera.dep_dens_env(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens_env(species.particles,solver.Data['Rho'],\
 						  solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
 					if 'Xchunked' in species.Configs:
-						solver.scl_spc = chimera.dep_dens_chnk(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens_chnk(species.particles,solver.Data['Rho'],\
 						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.scl_spc = chimera.dep_dens(species.particles,solver.scl_spc,\
+						solver.Data['Rho'] = chimera.dep_dens(species.particles,solver.Data['Rho'],\
 						  solver.Args['leftX'],*solver.Args['DepProj'])
 				solver.fb_dens_in()
 				if 'Still' not in species.Configs['Features']:
 					if 'KxShift' in solver.Configs:
 						if 'Xchunked' in species.Configs:
-							solver.vec_spc = chimera.dep_curr_env_chnk(species.particles,\
-							  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
+							solver.Data['J'] = chimera.dep_curr_env_chnk(species.particles,\
+							  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 							  solver.Args['leftX'],*solver.Args['DepProj'])
 						else:
-							solver.vec_spc = chimera.dep_curr_env(species.particles,\
-							  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
+							solver.Data['J'] = chimera.dep_curr_env(species.particles,\
+							  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
 						if 'Xchunked' in species.Configs:
-							solver.vec_spc = chimera.dep_curr_chnk(species.particles,\
-							  species.particles_cntr,solver.vec_spc,species.chunks,species.Configs['Xchunked'][1],\
+							solver.Data['J'] = chimera.dep_curr_chnk(species.particles,\
+							  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 							  solver.Args['leftX'],*solver.Args['DepProj'])
 						else:
-							solver.vec_spc = chimera.dep_curr(species.particles,\
-							  species.particles_cntr,solver.vec_spc,solver.Args['leftX'],*solver.Args['DepProj'])
+							solver.Data['J'] = chimera.dep_curr(species.particles,\
+							  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 					solver.fb_curr_in()
 				elif 'StillAsBackground' in solver.Configs['Features']:
-					solver.bg_spc += solver.scl_spc
+					solver.Data['BckGrndRho'] += solver.Data['Rho']
 				solver.maxwell_solver_init(species.Configs['MomentaMeans'][0])
-				solver.vec_spc[:] = 0.0
-				solver.scl_spc[:] = 0.0
-				solver.scl_fb[:] = 0.0
-				solver.vec_fb[:] = 0.0
-				if 'SpaceCharge' in solver.Configs['Features']:	solver.vec_fb_aux0[:] = 0.0
+				solver.Data['J'][:] = 0.0
+				solver.Data['Rho'][:] = 0.0
+				solver.Data['Rho_fb'][:] = 0.0
+				solver.Data['J_fb'][:] = 0.0
+				if 'SpaceCharge' in solver.Configs['Features']:	solver.Data['gradRho_fb_prv'][:] = 0.0
 
 	def chunk_particles(self,istep=0):
 		for species in self.Particles:
