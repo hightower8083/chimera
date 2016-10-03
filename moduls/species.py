@@ -1,14 +1,13 @@
 import numpy as np
 from inspect import getargspec
-from cox_transport import *
 import chimera.moduls.fimera as chimera
 from scipy.constants import m_e,c,e,epsilon_0
+from numba import jit
 
 class Specie:
 	def __init__(self,PartSpcs):
 		self.Configs = PartSpcs
 		if 'Features' not in self.Configs: self.Configs['Features'] = ()
-
 		leftX, rightX,lengthR, dx, dr = self.Configs['Grid']
 
 		if 'Xchunked' in self.Configs:
@@ -34,18 +33,14 @@ class Specie:
 			packO = np.asfortranarray( np.exp(2.j*np.pi*(packO.ravel()-1.)/self.Configs['FixedCell'][2]) )
 			self.Pax = (packX,packR,packO)
 		elif 'RandCell' in self.Configs:
-			self.Num_p = np.prod(self.Configs['RandCell'])
-			self.Pax = lambda: (
-			  np.random.rand(self.Num_p),\
-			  np.random.rand(self.Num_p),\
-			  np.exp(2.j*np.pi*np.random.rand(self.Num_p)))
+			self.Num_p = self.Configs['RandCell']
 		else:
 			self.Num_p = 0
 
 		if 'Density' in self.Configs:
 			self.wght0 = self.Configs['Charge']*self.Configs['Density']*dr*dx*2*np.pi/self.Num_p
 		else:
-			self.wght0 = 0
+			self.wght0 = 0.0
 
 		self.push_fact = 2*np.pi*self.Configs['Charge']/self.Configs['Mass']
 		self.weight2pC = 4*np.pi**2*m_e*c**2*epsilon_0*1e6/e
@@ -63,6 +58,12 @@ class Specie:
 		else:
 			self.Devices = ()
 
+#		self.Data['EB'] = np.zeros((6,0,),order='F')
+#		self.Data['coords'] = np.zeros((3,0),order='F')
+#		self.Data['coords_halfstep'] = np.zeros_like(self.Data['coords'])
+#		self.Data['weights'] = np.zeros((0,),order='F')
+#		self.Data['moments'] = np.zeros_like(self.Data['coords'])
+
 		self.particles = np.zeros((8,0),order='F')
 		self.particles_cntr = np.zeros((3,0),order='F')
 		self.EB = np.zeros((6,0),order='F')
@@ -74,10 +75,10 @@ class Specie:
 		if Domain!=None:
 			parts_left, parts_right,parts_rad0,parts_rad1 = Domain
 			if self.Args['leftX']>parts_right or self.Args['rightX']<parts_left or parts_rad1<self.Args['lowerR'] \
-			  or parts_rad0>self.Args['upperR']: return np.zeros((8,0))
+			  or parts_rad0>self.Args['upperR']: return np.zeros((8,0),order='F')
 
 		if Domain!=None:
-			ixb,ixe = (Xgrid<parts_left).sum(),(Xgrid<parts_right).sum()+1
+			ixb,ixe = (Xgrid<parts_left).sum()-1,(Xgrid<parts_right).sum()+1
 			Xgrid = Xgrid[ixb:ixe]
 			if parts_rad0<=Rgrid.min():
 				irb=0
@@ -92,27 +93,12 @@ class Specie:
 			Xgrid = Xgrid[-Xsteps:]
 
 		coords = np.zeros((4,Xgrid.shape[0]*Rgrid.shape[0]*self.Num_p),order='F')
-		RandPackO = np.asfortranarray(np.random.rand(Xgrid.shape[0],Rgrid.shape[0]))
 		if 'FixedCell' in self.Configs:
+			RandPackO = np.asfortranarray(np.random.rand(Xgrid.shape[0],Rgrid.shape[0]))
 			coords,Num_loc = chimera.genparts(coords,Xgrid,Rgrid,RandPackO,*self.Pax)
-			coords = np.asfortranarray(coords[:,:Num_loc])
 		elif 'RandCell' in self.Configs:
-			xx, yy ,zz,wght = np.zeros(0),np.zeros(0),np.zeros(0),np.zeros(0)
-			for ix in np.arange(Xgrid.shape[0]-1):
-				for ir in np.arange(Rgrid.shape[0]-1):
-					xx_cell = Xgrid[ix] + self.Args['dx']*\
-					  (np.arange(self.Num_p)+0.5*np.random.rand(self.Num_p))/self.Num_p
-					rr_cell = Rgrid[ir] + self.Args['dr']*\
-					  (np.arange(self.Num_p)+0.5*np.random.rand(self.Num_p))/self.Num_p
-					np.random.shuffle(xx_cell);np.random.shuffle(rr_cell);
-					oo_cell = 2*np.pi*np.random.rand(self.Num_p)
-					xx = np.r_[xx,xx_cell]
-					yy = np.r_[yy, rr_cell*np.cos(oo_cell)]
-					zz = np.r_[zz, rr_cell*np.sin(oo_cell)]
-					rc = Rgrid[ir]+0.5*self.Args['dr']
-					if Rgrid[ir]<0: rc = 0.125*self.Args['dr']
-					wght = np.r_[wght,np.ones(self.Num_p)*rc]
-					coords = np.asfortranarray(np.vstack((xx,yy,zz,wght)))
+			coords,Num_loc = self.gen_randcell(coords,Xgrid,Rgrid)
+		coords = coords[:,:Num_loc]
 		Num_loc = coords.shape[1]
 
 		if ProfileFunc == None:
@@ -150,23 +136,6 @@ class Specie:
 		if self.particles.shape[1]==0 or ('Still' in self.Configs['Features']): return
 		self.particles, self.particles_cntr = chimera.push_coords(self.particles, self.particles_cntr,dt)
 
-	def get_dens_on_grid(self,Nko=0):
-		VGrid = 2*np.pi*self.Args['dx']*self.Args['dr']*self.Args['Rgrid']
-		VGrid = (VGrid+(self.Args['Rgrid']==0))**-1*(self.Args['Rgrid']>0.0)
-		dens = np.zeros((self.Args['Nx'],self.Args['Nr'],Nko+1),dtype='complex',order='F')
-		dens = chimera.dep_dens(self.particles,dens,self.Args['leftX'],self.Args['Rgrid'],\
-		  1./self.Args['dx'],1/self.Args['dr'])*VGrid[None,:,None]
-		return dens
-
-	def correct_fel(self,UdulLinCorrect = 0.001):
-		self.particles[2] -= UdulLinCorrect
-		self.particles_cntr[2] -= UdulLinCorrect
-
-	def coxinel_line(self,transp = {'r11':10., 'r56':0.4e-3, 'lambda_u':2e-2, 'EE':180., 'lambda_r':200e-9,'foc':1.0}):
-		self.particles, self.particles_cntr = cox_transport(self.particles,self.particles_cntr,transp)
-		self.particles = np.asfortranarray(self.particles)
-		self.particles_cntr = np.asfortranarray(self.particles_cntr)
-
 	def denoise(self,WaveNums2Kill):
 		for k_supp in WaveNums2Kill:
 			particles_mirror = self.particles.copy()
@@ -197,3 +166,27 @@ class Specie:
 			self.particles_cntr = self.particles_cntr[:,:chnk_ind.shape[0]]
 			self.EB = self.EB[:,:chnk_ind.shape[0]]
 
+	def get_dens_on_grid(self,Nko=0):
+		VGrid = 2*np.pi*self.Args['dx']*self.Args['dr']*self.Args['Rgrid']
+		VGrid = (VGrid+(self.Args['Rgrid']==0))**-1*(self.Args['Rgrid']>0.0)
+		dens = np.zeros((self.Args['Nx'],self.Args['Nr'],Nko+1),dtype='complex',order='F')
+		dens = chimera.dep_dens(self.particles,dens,self.Args['leftX'],self.Args['Rgrid'],\
+		  1./self.Args['dx'],1/self.Args['dr'])*VGrid[None,:,None]
+		return dens
+
+	def gen_randcell(self,coords,Xgrid,Rgrid):
+		ip=0
+		for ix in np.arange(Xgrid.shape[0]-1):
+			for ir in np.arange(Rgrid.shape[0]-1):
+				rand_cell = np.random.rand(3,self.Num_p)
+				xx_cell = Xgrid[ix] + self.Args['dx']*(np.arange(self.Num_p)[None,:]+0.5*rand_cell[0])/self.Num_p
+				rr_cell = Rgrid[ir] + self.Args['dr']*(np.arange(self.Num_p)[None,:]+0.5*rand_cell[1])/self.Num_p
+				oo_cell = 2*np.pi*rand_cell[2]
+				coords[0,ip:ip+self.Num_p] = xx_cell
+				coords[1,ip:ip+self.Num_p] = rr_cell*np.cos(oo_cell)
+				coords[2,ip:ip+self.Num_p] = rr_cell*np.sin(oo_cell)
+				rc = Rgrid[ir]+0.5*self.Args['dr']
+				if Rgrid[ir]<0: rc = 0.125*self.Args['dr']
+				coords[3,ip:ip+self.Num_p] = np.ones(self.Num_p)*rc
+				ip += self.Num_p
+		return coords,ip
