@@ -19,7 +19,6 @@ class Diagnostics:
 			if np.mod(i,diag['Step'])!=0: continue
 			self.istr = str(i)
 			while len(self.istr)<7: self.istr='0'+self.istr
-			modes = 0
 			if 'Features' not in diag: diag['Features'] = {}
 
 			if diag['Type']=='Fields'   : self.fld_out(diag)
@@ -92,7 +91,7 @@ class Diagnostics:
 		if 'Return' in diag['Features']: ToReturn = []
 		for jj in range(len(self.Chimera.Solvers)):
 			sol = self.Chimera.Solvers[jj]
-			Rgrid,dr,leftX = sol.Args['RgridFull'],sol.Args['dr'],sol.Args['leftX']
+			Rgrid,dr = sol.Args['RgridFull'],sol.Args['dr']
 			dat = chimera.fb_vec_out(sol.Data['EG_fb'][:,:,:,:3],sol.Args['leftX'],*sol.Args['FBoutFull'])
 
 			if 'Return' in diag['Features']:

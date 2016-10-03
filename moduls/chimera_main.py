@@ -207,9 +207,7 @@ class ChimeraRun():
 
 		if 'AddPlasma' in wind:
 			####  EONS ON-TOP OF IONS
-			specie1, specie2 = self.Particles
-			rightX = specie1.Args['rightX']
-			lowerR, upperR  = specie1.Args['lowerR'], specie1.Args['upperR']
+			specie1, specie2 = self.Particles[:2]
 			parts_to_add = specie1.gen_parts(Xsteps=int(shiftX/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
 			specie1.add_particles(parts_to_add)
 			parts_to_add[-1] *= -1
