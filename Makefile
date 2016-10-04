@@ -24,6 +24,7 @@ FFTL = /Users/igor/CODES/fft/lib
 
 FLAGS_G = -c --opt='-O3 -ffast-math -march=native -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
 FLAGS_I = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
+
 F90 = f2py
 
 # This is done when typing 'make gfortran' or simply 'make' (default behavior)
