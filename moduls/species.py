@@ -11,8 +11,7 @@ class Specie:
 		leftX, rightX,lengthR, dx, dr = self.Configs['Grid']
 
 		if 'Xchunked' in self.Configs:
-			from os import environ
-			nthrds = int(environ['OMP_NUM_THREADS'])
+			nthrds = self.Configs['Xchunked'][0]
 			Nx = int(np.round(0.5/dx*(rightX - leftX)/nthrds)*2*nthrds)
 		else:
 			Nx = int(np.round(0.5/dx*(rightX - leftX))*2)
@@ -58,15 +57,12 @@ class Specie:
 		else:
 			self.Devices = ()
 
-#		self.Data['EB'] = np.zeros((6,0,),order='F')
-#		self.Data['coords'] = np.zeros((3,0),order='F')
-#		self.Data['coords_halfstep'] = np.zeros_like(self.Data['coords'])
-#		self.Data['weights'] = np.zeros((0,),order='F')
-#		self.Data['moments'] = np.zeros_like(self.Data['coords'])
-
-		self.particles = np.zeros((8,0),order='F')
-		self.particles_cntr = np.zeros((3,0),order='F')
-		self.EB = np.zeros((6,0),order='F')
+		self.Data = {}
+		self.Data['EB'] = np.zeros((6,0,),order='F')
+		self.Data['coords'] = np.zeros((3,0),order='F')
+		self.Data['weights'] = np.zeros((0,),order='F')
+		self.Data['coords_halfstep'] = np.zeros_like(self.Data['coords'])
+		self.Data['momenta'] = np.zeros_like(self.Data['coords'])
 
 	def gen_parts(self,Domain = None,Xsteps=None,ProfileFunc=None):
 		Xgrid = self.Args['Xgrid']
@@ -111,48 +107,62 @@ class Specie:
 		px = self.Configs['MomentaMeans'][0] + self.Configs['MomentaSpreads'][0]*np.random.randn(Num_loc)
 		py = self.Configs['MomentaMeans'][1] + self.Configs['MomentaSpreads'][1]*np.random.randn(Num_loc)
 		pz = self.Configs['MomentaMeans'][2] + self.Configs['MomentaSpreads'][2]*np.random.randn(Num_loc)
-		g = np.sqrt(1. + px*px + py*py + pz*pz)
-		new_parts = np.array(np.vstack(( coords[0:3], px,py,pz,g,coords[-1])),order='F')
-		return new_parts
+		#g = np.sqrt(1. + px*px + py*py + pz*pz)
+		weights = np.asfortranarray(coords[-1])
+		coords = np.asfortranarray(coords[0:3])
+		momenta = np.array(np.vstack((px,py,pz)),order='F')
+		return [coords,momenta,weights]
 
-	def add_particles(self,new_parts):
-		self.particles = np.concatenate((self.particles,new_parts),axis=1)
-		self.particles_cntr = np.concatenate((self.particles_cntr,np.asfortranarray(new_parts[:3].copy()) ),axis=1)
+	def add_particles(self,coords,momenta,weights):
+		self.Data['coords'] = np.concatenate((self.Data['coords'], coords),axis=1)
+		self.Data['coords_halfstep'] = np.concatenate((self.Data['coords_halfstep'], coords),axis=1)
+		self.Data['momenta'] = np.concatenate((self.Data['momenta'], momenta),axis=1)
+		self.Data['weights'] = np.concatenate((self.Data['weights'], weights),axis=0)
+		self.Data['EB'] = np.concatenate((self.Data['EB'],np.zeros((6,weights.shape[0]),order='F')),axis=1)
 
 	def make_field(self,i_step=0):
-		if (self.particles.shape[1]==0) or ('Still' in self.Configs['Features']): return
-		self.EB = np.zeros((6,self.particles.shape[1]),order='F')
+		if 'Still' in self.Configs['Features']: return
+		if self.Data['EB'].shape[-1]!=self.Data['coords'].shape[-1]:
+			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
+		else:
+			self.Data['EB'][:] = 0.0
 		for device in self.Devices:
 			pump_fld = device[0]
-			self.EB = pump_fld(np.asfortranarray(self.particles[0:3]),self.EB,i_step*self.Configs['TimeStep'],*device[1:])
+			self.Data['EB'] = pump_fld(self.Data['coords'],self.Data['EB'],i_step*self.Configs['TimeStep'],*device[1:])
 
 	def push_velocs(self,dt=None):
 		if dt==None:dt=self.Configs['TimeStep']
-		if self.particles.shape[1]==0 or ('Still' in self.Configs['Features']): return
-		self.particles = chimera.push_velocs(self.particles,self.EB,self.push_fact*dt)
+		if self.Data['coords'].shape[-1]==0 or ('Still' in self.Configs['Features']): return
+		self.Data['momenta'] = chimera.push_velocs(self.Data['momenta'],self.Data['weights'],self.Data['EB'],self.push_fact*dt)
 
 	def push_coords(self,dt=None):
 		dt=self.Configs['TimeStep']
-		if self.particles.shape[1]==0 or ('Still' in self.Configs['Features']): return
-		self.particles, self.particles_cntr = chimera.push_coords(self.particles, self.particles_cntr,dt)
+		if self.Data['coords'].shape[1]==0 or ('Still' in self.Configs['Features']): return
+		self.Data['coords'],self.Data['coords_halfstep'] = \
+		  chimera.push_coords(self.Data['coords'],self.Data['momenta'],\
+		  self.Data['coords_halfstep'],self.Data['weights'],dt)
 
 	def denoise(self,WaveNums2Kill):
 		for k_supp in WaveNums2Kill:
-			particles_mirror = self.particles.copy()
+			particles_mirror = self.Data['coords'].copy(order='F')
 			particles_mirror[0] = particles_mirror[0] + 0.5/k_supp
-			self.particles = np.concatenate((self.particles,particles_mirror),axis=1)
-			self.particles[-1,:] *= 0.5
-			particles_mirror = self.particles_cntr.copy()
+			self.Data['coords'] = np.concatenate((self.Data['coords'],particles_mirror),axis=1)
+
+			particles_mirror = self.Data['coords_halfstep'].copy(order='F')
 			particles_mirror[0] = particles_mirror[0] + 0.5/k_supp
-			self.particles_cntr = np.concatenate((self.particles_cntr,particles_mirror),axis=1)
+			self.Data['coords_halfstep'] = np.concatenate((self.Data['coords_halfstep'],particles_mirror),axis=1)
+
+			self.Data['momenta'] = np.concatenate((self.Data['momenta'],self.Data['momenta']),axis=1)
+			self.Data['weights'] = np.concatenate((self.Data['weights'],self.Data['weights']),axis=0)
+			self.Data['weights'] *= 0.5
 
 	def chunk_coords(self,position=None):
 		if 'Xchunked' in self.Configs:
 			if position=='cntr':
-				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(self.particles_cntr,\
+				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(self.Data['coords_halfstep'],\
 				  self.Args['Xgrid'],self.Configs['Xchunked'][0])
 			else:
-				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(self.particles,\
+				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(self.Data['coords'],\
 				  self.Args['Xgrid'],self.Configs['Xchunked'][0])
 			if outright == 0:
 				chnk_ind = chnk_ind.argsort()[outleft:]
@@ -160,17 +170,16 @@ class Specie:
 				chnk_ind = chnk_ind.argsort()[outleft:-outright]
 			if outleft!=0 or outright !=0: print('particles out', outleft,outright)
 
-			self.particles, self.particles_cntr = \
-			  chimera.align_coords(self.particles, self.particles_cntr,chnk_ind)
-			self.particles = self.particles[:,:chnk_ind.shape[0]]
-			self.particles_cntr = self.particles_cntr[:,:chnk_ind.shape[0]]
-			self.EB = self.EB[:,:chnk_ind.shape[0]]
+			self.Data['coords'] = chimera.align_data_vec(self.Data['coords'],chnk_ind)
+			self.Data['coords_halfstep'] = chimera.align_data_vec(self.Data['coords_halfstep'],chnk_ind)
+			self.Data['momenta'] = chimera.align_data_vec(self.Data['momenta'],chnk_ind)
+			self.Data['weights'] = chimera.align_data_scl(self.Data['weights'],chnk_ind)
 
 	def get_dens_on_grid(self,Nko=0):
 		VGrid = 2*np.pi*self.Args['dx']*self.Args['dr']*self.Args['Rgrid']
 		VGrid = (VGrid+(self.Args['Rgrid']==0))**-1*(self.Args['Rgrid']>0.0)
 		dens = np.zeros((self.Args['Nx'],self.Args['Nr'],Nko+1),dtype='complex',order='F')
-		dens = chimera.dep_dens(self.particles,dens,self.Args['leftX'],self.Args['Rgrid'],\
+		dens = chimera.dep_dens(self.Data['coords'],self.Data['weights'],dens,self.Args['leftX'],self.Args['Rgrid'],\
 		  1./self.Args['dx'],1/self.Args['dr'])*VGrid[None,:,None]
 		return dens
 

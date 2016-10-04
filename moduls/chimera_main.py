@@ -33,7 +33,7 @@ class ChimeraRun():
 	def make_halfstep(self):
 		for species in self.Particles: species.make_field()
 		for species in self.Particles:
-			if species.particles.shape[1] != 0: species.chunk_coords()
+			if species.Data['coords'].shape[1] != 0: species.chunk_coords()
 		self.get_init_fields()
 		for solver in self.Solvers: solver.G2B_FBRot()
 		self.project_fields()
@@ -49,12 +49,11 @@ class ChimeraRun():
 		for solver in self.Solvers:
 			if 'SpaceCharge' not in solver.Configs['Features']: continue
 			if 'StaticKick' in solver.Configs['Features']: continue
-			solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt'].copy()
+			solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt'].copy(order='F')
 			self.dep_dens_on_grid(solver)
 			solver.fb_dens_in()
 
 	def update_fields(self):
-		#self.re_psatd()
 		for solver in self.Solvers:
 			if 'StaticKick' in solver.Configs['Features']:
 				self.get_static_kick(solver)
@@ -68,109 +67,84 @@ class ChimeraRun():
 		for solver in self.Solvers:
 			solver.fb_fld_out()
 			for species in self.Particles:
-				if species.particles.shape[1]==0 or 'Still' in species.Configs['Features']: continue
+				if species.Data['coords'].shape[1]==0 or 'Still' in species.Configs['Features']: continue
 				if 'StaticKick' in solver.Configs['Features']:
-					species.EB = chimera.proj_fld_cntr(species.particles_cntr,species.particles[-1],solver.Data['EB'],\
-					  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
+					species.Data['EB'] = chimera.proj_fld(species.Data['coords_halfstep'],species.Data['weights'],solver.Data['EB'],\
+					  species.Data['EB'],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
 					if 'KxShift' in solver.Configs:
-						species.EB = chimera.proj_fld_env(species.particles,solver.Data['EB'],\
-						  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
+						species.Data['EB'] = chimera.proj_fld_env(species.Data['coords'],species.Data['weights'],solver.Data['EB'],\
+						  species.Data['EB'],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						species.EB = chimera.proj_fld(species.particles,solver.Data['EB'],\
-						  species.EB,solver.Args['leftX'],*solver.Args['DepProj'])
+						species.Data['EB'] = chimera.proj_fld(species.Data['coords'],species.Data['weights'],solver.Data['EB'],\
+						  species.Data['EB'],solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_curr_on_grid(self,solver):
 		solver.Data['J'][:] = 0.0
 		for species in self.Particles:
-			if species.particles.shape[1] == 0 or 'Still' in species.Configs['Features']: continue
+			if species.Data['coords'].shape[1] == 0 or 'Still' in species.Configs['Features']: continue
 			if 'KxShift' in solver.Configs:
 				if 'Xchunked' in species.Configs:
-					solver.Data['J'] = chimera.dep_curr_env_chnk(species.particles,\
-					  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
+					solver.Data['J'] = chimera.dep_curr_env_chnk(species.Data['coords_halfstep'],species.Data['momenta'],\
+					  species.Data['weights'],solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 					  solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.Data['J'] = chimera.dep_curr_env(species.particles,\
-					  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['J'] = chimera.dep_curr_env(species.Data['coords_halfstep'],species.Data['momenta'],\
+					  species.Data['weights'],solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 			else:
 				if 'Xchunked' in species.Configs:
-					solver.Data['J'] = chimera.dep_curr_chnk(species.particles,\
-					  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
+					solver.Data['J'] = chimera.dep_curr_chnk(species.Data['coords_halfstep'],species.Data['momenta'],\
+					  species.Data['weights'],solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 					  solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.Data['J'] = chimera.dep_curr(species.particles,\
-					  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['J'] = chimera.dep_curr(species.Data['coords_halfstep'],species.Data['momenta'],\
+					  species.Data['weights'],solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_dens_on_grid(self,solver):
 		solver.Data['Rho'][:] = 0.0
 		for species in self.Particles:
-			if species.particles.shape[1] == 0: continue
+			if species.Data['coords'].shape[1] == 0: continue
 			if 'Still' in species.Configs['Features'] and 'StillAsBackground' in solver.Configs['Features']:
 				solver.Data['Rho'] += solver.Data['BckGrndRho']
 			else:
 				if 'KxShift' in solver.Configs:
 					if 'Xchunked' in species.Configs:
-						solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.particles,solver.Data['Rho'],\
-						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.Data['Rho'] = chimera.dep_dens_env(species.particles,solver.Data['Rho'],\
-						  solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens_env(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
 					if 'Xchunked' in species.Configs:
-						solver.Data['Rho'] = chimera.dep_dens_chnk(species.particles,solver.Data['Rho'],\
-						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens_chnk(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.Data['Rho'] = chimera.dep_dens(species.particles,solver.Data['Rho'],\
-						  solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def dep_bg_on_grid(self,solver):
 		solver.Data['BckGrndRho'][:] = 0.0
 		for species in self.Particles:
-			if species.particles.shape[1] == 0 or 'Still' not in species.Configs['Features']: continue
+			if species.Data['coords'].shape[1]==0 or 'Still' not in species.Configs['Features']: continue
 			if 'KxShift' in solver.Configs:
 				if 'Xchunked' in species.Configs:
-					solver.Data['BckGrndRho'] = chimera.dep_dens_env_chnk(species.particles,solver.Data['BckGrndRho'],\
-					  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['BckGrndRho'] = chimera.dep_dens_env_chnk(species.Data['coords'],species.Data['weights'],\
+					  solver.Data['BckGrndRho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.Data['BckGrndRho'] = chimera.dep_dens_env(species.particles,solver.Data['BckGrndRho'],\
-					  solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['BckGrndRho'] = chimera.dep_dens_env(species.Data['coords'],species.Data['weights'],\
+					  solver.Data['BckGrndRho'], solver.Args['leftX'],*solver.Args['DepProj'])
 			else:
 				if 'Xchunked' in species.Configs:
-					solver.Data['BckGrndRho'] = chimera.dep_dens_chnk(species.particles,solver.Data['BckGrndRho'],\
-					  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['BckGrndRho'] = chimera.dep_dens_chnk(species.Data['coords'],species.Data['weights'],\
+					  solver.Data['BckGrndRho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					solver.Data['BckGrndRho'] = chimera.dep_dens(species.particles,solver.Data['BckGrndRho'],\
-					  solver.Args['leftX'],*solver.Args['DepProj'])
-
-	def dep_cntr_dens_curr_on_grid(self,solver,species):
-		solver.Data['Rho'][:] = 0.0
-		solver.Data['Rho_fb'][:] = 0.0
-		solver.Data['gradRho_fb_nxt'][:] = 0.0
-		if species.particles.shape[1]==0: return
-		if 'Xchunked' in species.Configs:
-			solver.Data['Rho'] = chimera.dep_dens_cntr_chnk(species.particles_cntr,species.particles[-1],solver.Data['Rho'],\
-			  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
-		else:
-			solver.Data['Rho'] = chimera.dep_dens_cntr(species.particles_cntr,species.particles[-1],solver.Data['Rho'],\
-			  solver.Args['leftX'],*solver.Args['DepProj'])
-		solver.fb_dens_in()
-
-		solver.Data['J'][:] = 0.0
-		solver.Data['J_fb'][:] = 0.0
-		if species.particles.shape[1] == 0 or 'Still' in species.Configs['Features']: return
-		if 'Xchunked' in species.Configs:
-			solver.Data['J'] = chimera.dep_curr_chnk(species.particles,\
-			  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
-			  solver.Args['leftX'],*solver.Args['DepProj'])
-		else:
-			solver.Data['J'] = chimera.dep_curr(species.particles,\
-			  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
-		solver.fb_curr_in()
+					solver.Data['BckGrndRho'] = chimera.dep_dens(species.Data['coords'],species.Data['weights'],\
+					  solver.Data['BckGrndRho'],solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def get_static_kick(self,solver):
 		solver.Data['EG_fb'][:] = 0.0
 		for species in self.Particles:
-			self.dep_cntr_dens_curr_on_grid(solver,species)
+#			self.dep_cntr_dens_curr_on_grid(solver,species)
 			PXmean = (species.particles[3]*species.particles[-1]).sum()/species.particles[-1].sum()
 			solver.maxwell_solver_init(PXmean)
 
@@ -184,9 +158,6 @@ class ChimeraRun():
 		if 'Features' not in wind: wind['Features'] = ()
 		if 'Velocity' not in wind:
 			vw = 1.0
-		elif wind['Velocity'] == 'Follow':
-			vw = (self.Particles[0].particles[3]/self.Particles[0].particles[-2]*\
-			  self.Particles[0].particles[-1]).sum()/self.Particles[0].particles[-1].sum()
 		else:
 			vw = wind['Velocity']
 
@@ -209,9 +180,9 @@ class ChimeraRun():
 			####  EONS ON-TOP OF IONS
 			specie1, specie2 = self.Particles[:2]
 			parts_to_add = specie1.gen_parts(Xsteps=int(shiftX/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
-			specie1.add_particles(parts_to_add)
+			specie1.add_particles(*parts_to_add)
 			parts_to_add[-1] *= -1
-			specie2.add_particles(parts_to_add)
+			specie2.add_particles(*parts_to_add)
 			### GENERAL CASE
 #			for species in self.Particles:
 #				rightX = species.Args['rightX']
@@ -220,19 +191,24 @@ class ChimeraRun():
 #				  wind['AddPlasma']))
 		if 'AbsorbLayer' in wind:
 			for species in self.Particles:
-				if species.particles.shape[1]==0: continue
+				if species.Data['coords'].shape[-1]==0: continue
 				SimDom = np.asfortranarray([species.Args['leftX']+wind['AbsorbLayer'],species.Args['rightX'],\
 				  0.0, species.Args['upperR']**2])
-				index2stay,num2stay = chimera.sortpartsout(np.asfortranarray(species.particles[:3]),SimDom)
+				index2stay,num2stay = chimera.sortpartsout(species.Data['coords'],SimDom)
 				index2stay = index2stay[:num2stay]
 
-				species.particles, species.particles_cntr = \
-				  chimera.align_coords(species.particles, species.particles_cntr,index2stay)
-				species.particles = species.particles[:,:index2stay.shape[0]]
-				species.particles_cntr = species.particles_cntr[:,:index2stay.shape[0]]
+				species.Data['coords'] = chimera.align_data_vec(species.Data['coords'],index2stay)
+				species.Data['coords_halfstep'] = chimera.align_data_vec(species.Data['coords_halfstep'],index2stay)
+				species.Data['momenta'] = chimera.align_data_vec(species.Data['momenta'],index2stay)
+				species.Data['weights'] = chimera.align_data_scl(species.Data['weights'],index2stay)
+
+				species.Data['coords'] = species.Data['coords'][:,:num2stay]
+				species.Data['coords_halfstep'] = species.Data['coords_halfstep'][:,:num2stay]
+				species.Data['momenta'] = species.Data['momenta'][:,:num2stay]
+				species.Data['weights'] = species.Data['weights'][:num2stay]
 		if 'NoSorting' not in wind['Features']:
 			for species in self.Particles:
-				if species.particles.shape[1] != 0: species.chunk_coords()
+				if species.Data['coords'].shape[-1] != 0: species.chunk_coords()
 		if 'AbsorbLayer' or 'AddPlasma' in wind:
 			for solver in self.Solvers:
 				if 'StaticKick' in solver.Configs['Features']: continue
@@ -252,9 +228,6 @@ class ChimeraRun():
 		if np.mod( istep-WindInterval[0], wind['Steps'])!= 0: return
 		if 'Velocity' not in wind:
 			vw = 1.0
-		elif wind['Velocity'] == 'Follow':
-			vw = (self.Particles[0].particles[3]/self.Particles[0].particles[-2]*\
-			  self.Particles[0].particles[-1]).sum()/self.Particles[0].particles[-1].sum()
 		else:
 			vw = wind['Velocity']
 		shiftX = 0.5*vw*wind['TimeStep']*wind['Steps']
@@ -270,40 +243,40 @@ class ChimeraRun():
 			for species in self.Particles:
 				solver.Data['J'][:] = 0.0
 				solver.Data['Rho'][:] = 0.0
-				if species.particles.shape[1]==0: continue
+				if species.Data['coords'].shape[-1]==0: continue
 
 				if 'KxShift' in solver.Configs:
 					if 'Xchunked' in species.Configs:
-						solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.particles,solver.Data['Rho'],\
-						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.Data['Rho'] = chimera.dep_dens_env(species.particles,solver.Data['Rho'],\
-						  solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens_env(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
 					if 'Xchunked' in species.Configs:
-						solver.Data['Rho'] = chimera.dep_dens_chnk(species.particles,solver.Data['Rho'],\
-						  species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens_chnk(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
-						solver.Data['Rho'] = chimera.dep_dens(species.particles,solver.Data['Rho'],\
-						  solver.Args['leftX'],*solver.Args['DepProj'])
+						solver.Data['Rho'] = chimera.dep_dens(species.Data['coords'],species.Data['weights'],\
+						  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
 				solver.fb_dens_in()
 				if 'Still' not in species.Configs['Features']:
 					if 'KxShift' in solver.Configs:
 						if 'Xchunked' in species.Configs:
-							solver.Data['J'] = chimera.dep_curr_env_chnk(species.particles,\
-							  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
+							solver.Data['J'] = chimera.dep_curr_env_chnk(species.Data['coords_halfstep'],species.Data['momenta'],\
+							  species.Data['weights'],solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 							  solver.Args['leftX'],*solver.Args['DepProj'])
 						else:
-							solver.Data['J'] = chimera.dep_curr_env(species.particles,\
-							  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
+							solver.Data['J'] = chimera.dep_curr_env(species.Data['coords_halfstep'],species.Data['momenta'],\
+							  species.Data['weights'],solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 					else:
 						if 'Xchunked' in species.Configs:
-							solver.Data['J'] = chimera.dep_curr_chnk(species.particles,\
-							  species.particles_cntr,solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
+							solver.Data['J'] = chimera.dep_curr_chnk(species.Data['coords_halfstep'],species.Data['momenta'],\
+							  species.Data['weights'],solver.Data['J'],species.chunks,species.Configs['Xchunked'][1],\
 							  solver.Args['leftX'],*solver.Args['DepProj'])
 						else:
-							solver.Data['J'] = chimera.dep_curr(species.particles,\
-							  species.particles_cntr,solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
+							solver.Data['J'] = chimera.dep_curr(species.Data['coords_halfstep'],species.Data['momenta'],\
+							  species.Data['weights'],solver.Data['J'],solver.Args['leftX'],*solver.Args['DepProj'])
 					solver.fb_curr_in()
 				elif 'StillAsBackground' in solver.Configs['Features']:
 					solver.Data['BckGrndRho'] += solver.Data['Rho']
@@ -319,12 +292,5 @@ class ChimeraRun():
 			if  'Xchunked' not in species.Configs or 'NoSorting' in species.Configs['Features']: continue
 			if np.mod(istep, species.Configs['Xchunked'][1]+1)!= 0: continue
 			if 'Still' in species.Configs['Features']: continue
-			if species.particles.shape[1] == 0: continue
+			if species.Data['coords'].shape[-1] == 0: continue
 			species.chunk_coords('cntr')
-
-	def re_psatd(self):
-		for species in self.Particles:
-			vb = (species.particles[3]/species.particles[-2]*species.particles[-1]).sum()/species.particles[-1].sum()
-			for solver in self.Solvers:
-				if 'KxShift' in solver.Configs:
-					solver.PSATD_coeffs(vb)
