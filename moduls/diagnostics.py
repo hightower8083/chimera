@@ -46,7 +46,6 @@ class Diagnostics:
 				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Solvers[jj].Data['EG_fb'])
 		if 'Return' in diag['Features']: return ToReturn
 
-
 	def dns_out(self,diag):
 		if 'MaxMode' in diag['Features']: 
 			modes = diag['Features']['MaxMode']

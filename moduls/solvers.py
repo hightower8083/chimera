@@ -221,17 +221,24 @@ class Solver:
 			self.Data['PSATD_G'][:,:,:,2] = 1-np.cos(dt*w)
 
 		if 'SpaceCharge' in self.Configs['Features']:
-#			self.CPSATD1[:,:,:,3] = 0.5*(np.cos(dt*w)-1)/w**2
-#			self.CPSATD1[:,:,:,4] = 0.5*(np.cos(dt*w)-1)/w**2
-#			self.CPSATD2[:,:,:,3] = -0.5*np.sin(dt*w)/w
-#			self.CPSATD2[:,:,:,4] = -0.5*np.sin(dt*w)/w
 
 			self.Data['PSATD_E'][:,:,:,3] = (dt*w*np.cos(dt*w)-np.sin(dt*w))/w**3/dt
 			self.Data['PSATD_E'][:,:,:,4] = (np.sin(dt*w)-dt*w)/w**3/dt
 			self.Data['PSATD_G'][:,:,:,3] = (1-np.cos(dt*w)-dt*w*np.sin(dt*w))/w**2/dt
 			self.Data['PSATD_G'][:,:,:,4] = (np.cos(dt*w)-1)/w**2/dt
 
-	def maxwell_solver_init(self,px0):
+	def poiss_corr(self):
+		if 'NoPoissonCorrection' in self.Configs['Features']: return
+		self.Data['vec_fb'][:] = self.Data['J_fb']
+		self.FBDiv()
+		self.FBGrad()
+		if 'SpaceCharge' in self.Configs['Features']:
+			self.Data['J_fb'] = chimera.poiss_corr_with_spchrg(self.Data['J_fb'],self.Data['vec_fb'],\
+			  self.Data['gradRho_fb_prv'], self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1./self.Configs['TimeStep'])
+		else:
+			self.Data['J_fb'] = chimera.poiss_corr_wo_spchrg(self.Data['J_fb'],self.Data['vec_fb'],self.Args['PoissFact'])
+
+	def maxwell_solver_stat(self,px0):
 		if 'SpaceCharge' not in self.Configs['Features'] and 'StaticKick' not in self.Configs['Features']: return
 		beta0 = px0/np.sqrt(1+px0**2)
 		kx_g,w = self.Args['kx_g'],self.Args['w']
@@ -244,6 +251,21 @@ class Solver:
 		CPSATD2[:,:,:,0] = w**2/(w**2-kx_g**2)
 		CPSATD2[:,:,:,1] = 1.j*kx_g/(w**2-kx_g**2)
 		self.Data['EG_fb'] = chimera.maxwell_init_push(self.Data['EG_fb'],self.Data['J_fb'],self.Data['gradRho_fb_nxt'],CPSATD1,CPSATD2)
+
+	def field_drift(self,px0):
+		beta0 = px0/np.sqrt(1+px0**2)
+		kx_g = beta0*self.Args['kx_g'][:,:,None,None]
+		self.Data['EG_fb'] *= np.exp(-0.5j*kx_g*self.Configs['TimeStep'])
+
+	def poiss_corr_stat(self,px0):
+		if 'NoPoissonCorrection' in self.Configs['Features']: return
+		beta0 = px0/np.sqrt(1+px0**2)
+		kx_g = beta0*self.Args['kx_g'][:,:,None,None]
+		self.Data['vec_fb'][:] = self.Data['J_fb']
+		self.FBDiv()
+		self.FBGrad()
+		self.Data['J_fb'] = chimera.poiss_corr_with_spchrg(self.Data['J_fb'],self.Data['vec_fb'],\
+		  np.zeros_like(self.Data['gradRho_fb_nxt']),-1.j*kx_g*self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1.)
 
 	def maxwell_solver(self):
 		if 'SpaceCharge' in self.Configs['Features']:
@@ -283,17 +305,6 @@ class Solver:
 		else:
 			self.Data['EB'][:,0,0] = self.Data['EB'][:,1,0]
 			self.Data['EB'][:,0,1:] = -self.Data['EB'][:,1,1:]
-
-	def poiss_corr(self):
-		if 'NoPoissonCorrection' in self.Configs['Features']: return
-		self.Data['vec_fb'][:] = self.Data['J_fb']
-		self.FBDiv()
-		self.FBGrad()
-		if 'SpaceCharge' in self.Configs['Features']:
-			self.Data['J_fb'] = chimera.poiss_corr_with_spchrg(self.Data['J_fb'],self.Data['vec_fb'],\
-			  self.Data['gradRho_fb_prv'], self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1./self.Configs['TimeStep'])
-		else:
-			self.Data['J_fb'] = chimera.poiss_corr_wo_spchrg(self.Data['J_fb'],self.Data['vec_fb'],self.Args['PoissFact'])
 
 	def FBGrad(self):
 		if 'KxShift' in self.Configs:

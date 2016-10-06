@@ -59,6 +59,7 @@ do ip=1,np
 enddo
 
 if (Rgrid(0)<0) then
+!  curr(:,1,:,:) = curr(:,1,:,:) - curr(:,0,:,:)
   curr(:,1,0,:) = curr(:,1,0,:) + curr(:,0,0,:)
   if (nkO>0) curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
   curr(:,0,:,:) = 0.0
@@ -121,8 +122,9 @@ do ip=1,np
 enddo
 
 if (Rgrid(0)<0) then
-  dens(:,1,0) = dens(:,1,0) + dens(:,0,0)
-  if (nkO>0) dens(:,1,1:nkO) = dens(:,2,1:nkO)/9.0d0
+  dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
+!  dens(:,1,0) = dens(:,1,0) + dens(:,0,0)
+!  if (nkO>0) dens(:,1,1:nkO) = dens(:,2,1:nkO)/9.0d0
   dens(:,0,:) = 0.0
 endif
 
@@ -289,7 +291,8 @@ complex(kind=8) :: ii=(0.0d0,1.0d0),phase_p,phaseO(0:nkO),projcomp(0:1,0:1),proj
 !f2py intent(in,out) :: Fld_tot
 !f2py intent(hide)   :: np,nx,nr,nkO
 
-!$omp parallel default(shared) private(ix,ir,ip,k,l,iO,xp,yp,zp,rp,wp,S0,Fld_p,phaseO,phase_p,projcomp,projcompO)
+!$omp parallel default(shared) private(ix,ir,ip,k,l,iO,xp,yp,zp,rp,wp,S0,Fld_p,&
+!$omp phaseO,phase_p,projcomp,projcompO)
 !$omp do schedule(static)
 do ip=1,np
   wp = wghts(ip)
