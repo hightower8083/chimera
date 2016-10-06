@@ -99,7 +99,6 @@ deallocate(loc_right)
 if (Rgrid(0)<0) then
 !  curr(:,1,:,:) = curr(:,1,:,:) - curr(:,0,:,:)
   curr(:,1,0,:) = curr(:,1,0,:) + curr(:,0,0,:)
-!  if (nkO>0) curr(:,1,1:nkO,:) = curr(:,1,1:nkO,:) - curr(:,0,1:nkO,:)
   if (nkO>0) curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
   curr(:,0,:,:) = 0.0
 endif
@@ -125,7 +124,8 @@ chunk_size=(nx+1)/nchnk
 call omp_set_num_threads(nchnk)
 
 !$omp parallel default(shared) &
-!$omp private(loc_left,loc_right,xp,yp,zp,rp,wp,S0,dens_p,phaseO,phase_m,ix,ir,ip,k,iO,ichnk,nxleft)
+!$omp private(loc_left,loc_right,xp,yp,zp,rp,wp,S0,dens_p,phaseO,phase_m,&
+!$omp  ix,ir,ip,k,iO,ichnk,nxleft)
 allocate(loc_left(-guards:0,0:nr,0:nkO))
 allocate(loc_right(chunk_size:chunk_size+guards,0:nr,0:nkO))
 ichnk = omp_get_thread_num()
@@ -199,7 +199,6 @@ deallocate(loc_right)
 if (Rgrid(0)<0) then
 !  dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
   dens(:,1,0) = dens(:,1,0) + dens(:,0,0)
-!  if (nkO>0) dens(:,1,1:nkO) = dens(:,1,1:nkO) - dens(:,0,1:nkO)
   if (nkO>0) dens(:,1,1:nkO) = dens(:,2,1:nkO)/9.0d0
   dens(:,0,:) = 0.0
 endif
@@ -226,7 +225,8 @@ chunk_size=(nx+1)/nchnk
 call omp_set_num_threads(nchnk)
 
 !$omp parallel default(shared) &
-!$omp private(loc_left,loc_right,xp,yp,zp,rp,gp,wp,S0,veloc,curr_p,phaseO,phase_m,ix,ir,ip,k,l,iO,ichnk,nxleft)
+!$omp private(loc_left,loc_right,xp,yp,zp,rp,gp,wp,S0,veloc,curr_p,phaseO,phase_m,&
+!$omp  ix,ir,ip,k,l,iO,ichnk,nxleft)
 ichnk = omp_get_thread_num()
 allocate(loc_left(-guards:0,0:nr,-nkO:nkO,3))
 allocate(loc_right(chunk_size:chunk_size+guards,0:nr,-nkO:nkO,3))
@@ -388,7 +388,6 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
     dens_p(:,k) = S0(:,1)*S0(k,2)*wp
   enddo
   dens_p = dens_p*wp
-
 
   do iO = 0,nkO
     do k = 0,1

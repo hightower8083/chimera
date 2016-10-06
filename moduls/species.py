@@ -29,7 +29,7 @@ class Specie:
 			  1:self.Configs['FixedCell'][2]:self.Configs['FixedCell'][2]*1j]
 			packX = np.asfortranarray( (packX.ravel()-0.5)/self.Configs['FixedCell'][0])
 			packR = np.asfortranarray( (packR.ravel()-0.5)/self.Configs['FixedCell'][1])
-			packO = np.asfortranarray( np.exp(2.j*np.pi*(packO.ravel()-1.)/self.Configs['FixedCell'][2]) )
+			packO = np.asfortranarray( np.exp(2.j*np.pi*(packO.ravel()-1)/self.Configs['FixedCell'][2]) )
 			self.Pax = (packX,packR,packO)
 		elif 'RandCell' in self.Configs:
 			self.Num_p = self.Configs['RandCell']

@@ -75,8 +75,8 @@ complex (kind=8), intent(in) :: PackO(PPC)
 real (kind=8), intent(inout) :: coord(4,np)
 integer, intent(out)         :: indPart
 integer                      :: ip,ir,ix
-real (kind=8)                :: x0,x1,r0,r1,dr,pi=4.d0*DATAN(1.d0),&
-                                coords_cell(2,PPC),wghcoef
+real (kind=8)                :: x0,x1,r0,r1,dr_2,pi=4.d0*DATAN(1.d0),&
+                                coords_cell(2,PPC)
 complex (kind=8)             :: Ocell(PPC),Oshft, ii=(0.0d0,1.0d0)
 
 !f2py intent(in) :: Xgrid,Rgrid,PackX,PackR,PackO,RandPackO
@@ -85,19 +85,22 @@ complex (kind=8)             :: Ocell(PPC),Oshft, ii=(0.0d0,1.0d0)
 !f2py intent(hide) :: np,nx,nr,PPC
 
 coord  = 0.0
-dr = Rgrid(2)-Rgrid(1)
+dr_2 = 0.5*(Rgrid(2)-Rgrid(1))
 
 indPart = 0
 do ir=1,nr-1
   do ix=1,nx-1
-    if (Rgrid(ir)>=0.0) then
-      r0 = Rgrid(ir)
-      wghcoef = 1.0
-    else
-      r0 = 0.0
-      wghcoef = 0.0
-    endif
-    r1 = Rgrid(ir+1)
+!    if (Rgrid(ir)>=0.0) then
+!      r0 = Rgrid(ir)
+!      ppc_loc = PPC
+!      wghcoef = 1.0
+!    else
+!      r0 = 0.0
+!      ppc_loc = PPC/2
+!      wghcoef = 0.5
+!    endif
+    r0 = Rgrid(ir)+dr_2
+    r1 = Rgrid(ir+1)+dr_2
     x0 = Xgrid(ix)
     x1 = Xgrid(ix+1)
     coords_cell(1,:) = x0+(x1-x0)*PackX
@@ -107,11 +110,12 @@ do ir=1,nr-1
     Ocell = PackO*Oshft
 
     do ip=1,PPC
+      if (coords_cell(2,ip)<=0) CYCLE
       indPart = indPart+1
       coord(1,indPart) = coords_cell(1,ip)
       coord(2,indPart) = coords_cell(2,ip)*AIMAG(Ocell(ip))
       coord(3,indPart) = coords_cell(2,ip)*DBLE (Ocell(ip))
-      coord(4,indPart) = 0.5*(r0+r1)*wghcoef
+      coord(4,indPart) = coords_cell(2,ip) 
     enddo
   enddo
 enddo
