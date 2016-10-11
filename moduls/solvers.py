@@ -72,7 +72,7 @@ class Solver:
 
 		for jm in np.arange(Mmin,Mmax+1):
 			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
-			In [:,:,jm] = np.linalg.inv(Out[:,:,jm])
+			In [:,:,jm] = np.linalg.pinv(Out[:,:,jm])
 			DpS2R[:,:,jm] = 0.5*kr[:,jm+1][None,:]*jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:])
 			DmS2R[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:])
 
@@ -261,6 +261,7 @@ class Solver:
 		if 'NoPoissonCorrection' in self.Configs['Features']: return
 		beta0 = px0/np.sqrt(1+px0**2)
 		kx_g = beta0*self.Args['kx_g'][:,:,None,None]
+#		self.Data['J_fb'] *= np.exp(-0.5j*kx_g*self.Configs['TimeStep'])
 		self.Data['vec_fb'][:] = self.Data['J_fb']
 		self.FBDiv()
 		self.FBGrad()

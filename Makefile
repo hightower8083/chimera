@@ -39,4 +39,4 @@ ifort :
 
 clean :
 	rm -rf  ./moduls/*.so ./moduls/*.pyc ./*.pyc ./moduls/.nfs0* \
-           ./.nfs0* ./f90/.nfs0*  ./.ipynb_checkpoints/* ./*.so.*
+           ./.nfs0* ./f90/.nfs0*  ./doc/.ipynb_checkpoints/* ./*.so.*

@@ -24,8 +24,8 @@ class ChimeraRun():
 		self.chunk_particles(istep)
 		self.project_current()
 		self.project_density()
-		for wind in self.MovingFrames: self.move_frame_staged(wind,istep)
 		self.update_fields()
+		for wind in self.MovingFrames: self.move_frame_staged(wind,istep)
 		for species in self.Particles: species.make_field(istep)
 		self.project_fields()
 		for species in self.Particles: species.push_velocs()
@@ -60,7 +60,7 @@ class ChimeraRun():
 				solver.Data['EG_fb'][:] = 0.0
 				for species in self.Particles:
 					PXmean = (species.Data['momenta'][0]*species.Data['weights']).sum()/species.Data['weights'].sum()
-					solver.poiss_corr_stat(PXmean)
+#					solver.poiss_corr_stat(PXmean)
 					solver.maxwell_solver_stat(PXmean)
 					solver.field_drift(PXmean)
 				solver.G2B_FBRot()
@@ -73,7 +73,7 @@ class ChimeraRun():
 		for solver in self.Solvers:
 			solver.fb_fld_out()
 			for species in self.Particles:
-				if species.Data['coords'].shape[1]==0 or 'Still' in species.Configs['Features']: continue
+				if species.Data[component].shape[1]==0 or 'Still' in species.Configs['Features']: continue
 				if 'KxShift' in solver.Configs:
 					species.Data['EB'] = chimera.proj_fld_env(species.Data[component],species.Data['weights'],solver.Data['EB'],\
 					  species.Data['EB'],solver.Args['leftX'],*solver.Args['DepProj'])

@@ -47,7 +47,7 @@ class Diagnostics:
 		if 'Return' in diag['Features']: return ToReturn
 
 	def dns_out(self,diag):
-		if 'MaxMode' in diag['Features']: 
+		if 'MaxMode' in diag['Features']:
 			modes = diag['Features']['MaxMode']
 		else:
 			modes = 0
