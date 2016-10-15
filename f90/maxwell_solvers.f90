@@ -182,4 +182,3 @@ do iO=1,nkO
 enddo
 !$omp end parallel
 end subroutine
-

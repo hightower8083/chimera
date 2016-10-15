@@ -97,7 +97,6 @@ deallocate(loc_right)
 !$omp end parallel
 
 if (Rgrid(0)<0) then
-!  curr(:,1,:,:) = curr(:,1,:,:) - curr(:,0,:,:)
   curr(:,1,0,:) = curr(:,1,0,:) + curr(:,0,0,:)
   if (nkO>0) curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
   curr(:,0,:,:) = 0.0
@@ -198,8 +197,6 @@ deallocate(loc_right)
 
 if (Rgrid(0)<0) then
   dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
-!  dens(:,1,0) = dens(:,1,0) + dens(:,0,0)
-!  if (nkO>0) dens(:,1,1:nkO) = dens(:,2,1:nkO)/9.0d0
   dens(:,0,:) = 0.0
 endif
 end subroutine
@@ -317,7 +314,6 @@ if (Rgrid(0)<0) then
     curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
     curr(:,1,-nkO:-1,:) = curr(:,2,-nkO:-1,:)/9.0d0
   endif
-!  curr(:,1,:,:) = curr(:,1,:,:) - curr(:,0,:,:)
   curr(:,0,:,:) = 0.0
 endif
 
@@ -423,11 +419,6 @@ deallocate(loc_right)
 !$omp end parallel
 
 if (Rgrid(0)<0) then
-!  dens(:,1,0) = dens(:,1,0) + dens(:,0,0)
-!  if (nkO>0) then
-!    dens(:,1,1:nkO) = dens(:,2,1:nkO)/9.0d0
-!    dens(:,1,-nkO:-1) = dens(:,2,-nkO:-1)/9.0d0
-!  endif
   dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
   dens(:,0,:) = 0.0
 endif
