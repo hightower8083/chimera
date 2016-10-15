@@ -65,11 +65,13 @@ class Diagnostics:
 		if 'Return' in diag['Features']: ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
 			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
-#			indx = np.nonzero(self.Chimera.Particles[jj].particles[-2]>20.)[0] # LPA filter
+			PP = self.Chimera.Particles[jj].Data['momenta']
+			XX =  self.Chimera.Particles[jj].Data['coords_halfstep']
+			indx = np.nonzero( (PP**2).sum(0)>20.**2)[0] # LPA filter
 			if 'Return' in diag['Features']:
-				ToReturn.append(self.Chimera.Particles[jj].particles.copy())
+				ToReturn.append(np.concatenate((XX,PP),axis=0))
 			else:
-				np.save(self.out_folder+'phs'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Particles[jj].particles)
+				np.save(self.out_folder+'phs'+str(jj)+'_'+self.istr+'.npy',np.concatenate((XX,PP),axis=0)  )
 		if 'Return' in diag['Features']: return ToReturn
 
 	def nrg_out(self,diag):
