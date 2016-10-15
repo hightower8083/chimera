@@ -49,8 +49,14 @@ class ChimeraRun():
 
 	def project_density(self):
 		for solver in self.Solvers:
-			if 'SpaceCharge' not in solver.Configs['Features'] and 'StaticKick' not in solver.Configs['Features']: continue
-			if 'StaticKick' not in solver.Configs['Features']: solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt'].copy(order='F')
+			if 'SpaceCharge' not in solver.Configs['Features'] and \
+			  'StaticKick' not in solver.Configs['Features']: continue
+			if 'StaticKick' not in solver.Configs['Features']:
+#				solver.Data['vec_fb'][:] = solver.Data['EG_fb'][:,:,:,:3]
+#				solver.FBDiv()
+#				solver.Data['Rho_fb'][:] = solver.Data['scl_fb']
+#				solver.FBGradDens()
+				solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt'].copy(order='F')
 			self.dep_dens_on_grid(solver)
 			solver.fb_dens_in()
 
@@ -60,7 +66,7 @@ class ChimeraRun():
 				solver.Data['EG_fb'][:] = 0.0
 				for species in self.Particles:
 					PXmean = (species.Data['momenta'][0]*species.Data['weights']).sum()/species.Data['weights'].sum()
-#					solver.poiss_corr_stat(PXmean)
+					solver.poiss_corr_stat(PXmean)
 					solver.maxwell_solver_stat(PXmean)
 					solver.field_drift(PXmean)
 				solver.G2B_FBRot()
@@ -173,18 +179,16 @@ class ChimeraRun():
 			comp.Args['rightX'] = comp.Args['Xgrid'][-1]
 
 		if 'AddPlasma' in wind:
-			####  EONS ON-TOP OF IONS
-			specie1, specie2 = self.Particles[:2]
-			parts_to_add = specie1.gen_parts(Xsteps=int(shiftX/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
-			specie1.add_particles(*parts_to_add)
-			parts_to_add[-1] *= -1
-			specie2.add_particles(*parts_to_add)
-			### GENERAL CASE
-#			for species in self.Particles:
-#				rightX = species.Args['rightX']
-#				lowerR, upperR  = species.Args['lowerR'], species.Args['upperR']
-#				species.add_particles(species.gen_parts((rightX-shiftX,rightX,lowerR,upperR),\
-#				  wind['AddPlasma']))
+			if 'IonsOnTop' in wind['Features']:
+				specie1, specie2 = self.Particles[:2]
+				parts_to_add = specie1.gen_parts(Xsteps=int(shiftX/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
+				specie1.add_particles(*parts_to_add)
+				parts_to_add[-1] *= -1
+				specie2.add_particles(*parts_to_add)
+			else:
+				for species in self.Particles:
+					species.add_particles(*species.gen_parts(Xsteps=int(shiftX/wind['TimeStep'])+1, \
+					  ProfileFunc=wind['AddPlasma']))
 		if 'AbsorbLayer' in wind:
 			for species in self.Particles:
 				if species.Data['coords'].shape[-1]==0: continue
