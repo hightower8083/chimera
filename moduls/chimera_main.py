@@ -56,7 +56,7 @@ class ChimeraRun():
 #				solver.FBDiv()
 #				solver.Data['Rho_fb'][:] = solver.Data['scl_fb']
 #				solver.FBGradDens()
-				solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt'].copy(order='F')
+				solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt']
 			self.dep_dens_on_grid(solver)
 			solver.fb_dens_in()
 
