@@ -367,7 +367,7 @@ class Solver:
 
 		self.Data['vec_fb'][:] = np.cos(w*X_focus)*EE + np.sin(w*X_focus)/w*GG
 		GG = -w*np.sin(w*X_focus)*EE + np.cos(w*X_focus)*GG
-		EE = self.Data['vec_fb'].copy()
+		EE[:] = self.Data['vec_fb']
 		EE *= np.exp(1.j*kx_g[:,:,None,None]*X_focus)
 		GG *= np.exp(1.j*kx_g[:,:,None,None]*X_focus)
 

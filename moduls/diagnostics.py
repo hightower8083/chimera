@@ -54,24 +54,29 @@ class Diagnostics:
 		if 'Return' in diag['Features']:ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
 			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
+			dat = self.Chimera.Particles[jj].get_dens_on_grid(modes)[:,1:]
 			if 'Return' in diag['Features']:
-				ToReturn.append( self.Chimera.Particles[jj].get_dens_on_grid(modes)[:,1:].copy())
+				ToReturn.append(dat.copy())
 			else:
-				np.save(self.out_folder+'dens_'+str(jj)+'_'+self.istr+'.npy', \
-				  self.Chimera.Particles[jj].get_dens_on_grid(modes)[:,1:])
+				np.save(self.out_folder+'dens_'+str(jj)+'_'+self.istr+'.npy',dat)
+			dat = None
 		if 'Return' in diag['Features']: return ToReturn
 
 	def phs_out(self,diag):
 		if 'Return' in diag['Features']: ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
 			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
-			PP = self.Chimera.Particles[jj].Data['momenta']
-			XX =  self.Chimera.Particles[jj].Data['coords_halfstep']
-			indx = np.nonzero( (PP**2).sum(0)>20.**2)[0] # LPA filter
+			indx = np.nonzero( (1.+self.Chimera.Particles[jj].Data['momenta']**2).sum(0)>20.**2)[0] # LPA filter
+			PartsPack = np.concatenate((\
+			  self.Chimera.Particles[jj].Data['coords_halfstep'][:,indx],\
+			  self.Chimera.Particles[jj].Data['momenta'][:,indx],\
+			  self.Chimera.Particles[jj].Data['weights'][indx][None,:]),axis=0)
 			if 'Return' in diag['Features']:
-				ToReturn.append(np.concatenate((XX,PP),axis=0))
+				ToReturn.append(PartsPack.copy())
 			else:
-				np.save(self.out_folder+'phs'+str(jj)+'_'+self.istr+'.npy',np.concatenate((XX,PP),axis=0)  )
+				np.save(self.out_folder+'phs'+str(jj)+'_'+self.istr+'.npy',PartsPack)
+			PartsPack = None
+			indx = None
 		if 'Return' in diag['Features']: return ToReturn
 
 	def nrg_out(self,diag):
