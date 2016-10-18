@@ -37,8 +37,9 @@ class ChimeraRun():
 		self.project_current()
 		self.project_density()
 		for solver in self.Solvers:
-			solver.maxwell_solver_stat(species.Configs['MomentaMeans'][0])
-			solver.G2B_FBRot()
+			for species in self.Particles:
+				solver.maxwell_solver_stat(species.Configs['MomentaMeans'][0])
+				solver.G2B_FBRot()
 		self.project_fields()
 		for species in self.Particles: species.push_velocs(dt=0.5*species.Configs['TimeStep'])
 

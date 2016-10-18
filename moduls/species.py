@@ -90,7 +90,7 @@ class Specie:
 
 		coords = np.zeros((4,Xgrid.shape[0]*Rgrid.shape[0]*self.Num_p),order='F')
 		if 'FixedCell' in self.Configs:
-			RandPackO = np.asfortranarray(np.random.rand(Xgrid.shape[0],Rgrid.shape[0]))
+			RandPackO = np.random.rand(Xgrid.shape[0],Rgrid.shape[0]).astype('d',order='F')
 			coords,Num_loc = chimera.genparts(coords,Xgrid,Rgrid,RandPackO,*self.Pax)
 		elif 'RandCell' in self.Configs:
 			coords,Num_loc = self.gen_randcell(coords,Xgrid,Rgrid)
@@ -107,10 +107,9 @@ class Specie:
 		px = self.Configs['MomentaMeans'][0] + self.Configs['MomentaSpreads'][0]*np.random.randn(Num_loc)
 		py = self.Configs['MomentaMeans'][1] + self.Configs['MomentaSpreads'][1]*np.random.randn(Num_loc)
 		pz = self.Configs['MomentaMeans'][2] + self.Configs['MomentaSpreads'][2]*np.random.randn(Num_loc)
-		#g = np.sqrt(1. + px*px + py*py + pz*pz)
-		weights = np.asfortranarray(coords[-1])
-		coords = np.asfortranarray(coords[0:3])
-		momenta = np.array(np.vstack((px,py,pz)),order='F')
+		weights = coords[-1].astype('d',order='F')
+		coords = coords[0:3].astype('d',order='F')
+		momenta = np.vstack((px,py,pz)).astype('d',order='F')
 		return [coords,momenta,weights]
 
 	def add_particles(self,coords,momenta,weights):
@@ -118,14 +117,16 @@ class Specie:
 		self.Data['coords_halfstep'] = np.concatenate((self.Data['coords_halfstep'], coords),axis=1)
 		self.Data['momenta'] = np.concatenate((self.Data['momenta'], momenta),axis=1)
 		self.Data['weights'] = np.concatenate((self.Data['weights'], weights),axis=0)
-		self.Data['EB'] = np.concatenate((self.Data['EB'],np.zeros((6,weights.shape[0]),order='F')),axis=1)
+		dummyEB = np.zeros((6,weights.shape[0]),order='F')
+		self.Data['EB'] = np.concatenate((self.Data['EB'],dummyEB),axis=1)
 
 	def make_field(self,i_step=0):
-		if 'Still' in self.Configs['Features']: return
 		if self.Data['EB'].shape[-1]!=self.Data['coords'].shape[-1]:
+			self.Data['EB'] = None
 			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
 		else:
 			self.Data['EB'][:] = 0.0
+		if 'Still' in self.Configs['Features']: return
 		for device in self.Devices:
 			pump_fld = device[0]
 			self.Data['EB'] = pump_fld(self.Data['coords'],self.Data['EB'],i_step*self.Configs['TimeStep'],*device[1:])

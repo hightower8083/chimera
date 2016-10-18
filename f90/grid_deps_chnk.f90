@@ -7,7 +7,7 @@ real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np),leftX,Rgrid(0:
                               dx_inv,dr_inv
 complex(kind=8),intent(inout):: curr(0:nx,0:nr,0:nkO,3)
 integer         :: ix,ir,ip,k,l,iO,nxleft,chunk_size,ichnk
-real(kind=8)    :: xp,yp,zp,rp,gp,wp,S0(0:1,2),veloc(3),curr_p(0:1,0:1)
+real(kind=8)    :: xp,yp,zp,rp,gp,wp,S0(0:1,2),veloc(3),curr_p(0:1,0:1),inv9
 complex(kind=8) :: ii=(0.0d0,1.0d0),phaseO(0:nkO),phase_m
 complex(kind=8), allocatable :: loc_left(:,:,:,:),loc_right(:,:,:,:)
 
@@ -17,6 +17,8 @@ complex(kind=8), allocatable :: loc_left(:,:,:,:),loc_right(:,:,:,:)
 
 chunk_size=(nx+1)/nchnk
 call omp_set_num_threads(nchnk)
+
+inv9 = 1.0d0/9.0d0
 
 !$omp parallel default(shared) &
 !$omp private(loc_left,loc_right,xp,yp,zp,rp,wp,gp,S0,&
@@ -96,11 +98,26 @@ deallocate(loc_left)
 deallocate(loc_right)
 !$omp end parallel
 
-if (Rgrid(0)<0) then
-  curr(:,1,0,:) = curr(:,1,0,:) + curr(:,0,0,:)
-  if (nkO>0) curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
-  curr(:,0,:,:) = 0.0
-endif
+!$omp parallel do schedule(static) default(shared) private(ix,iO,l)
+do l=1,3
+  do ix=0,nx
+    curr(ix,1,0,l) = curr(ix,1,0,l) + curr(ix,0,0,l)
+  enddo
+
+  if (nkO>0) then
+    do iO = 1,nkO
+      do ix=0,nx
+        curr(ix,1,iO,l) = curr(ix,2,iO,l)*inv9
+      enddo
+    enddo
+  endif
+enddo
+!$omp end parallel do
+
+!  curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)*inv9
+!endif
+curr(:,0,:,:) = 0.0
+
 end subroutine
 
 subroutine dep_dens_chnk(coord,wghts,dens,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,&
@@ -195,10 +212,8 @@ deallocate(loc_left)
 deallocate(loc_right)
 !$omp end parallel
 
-if (Rgrid(0)<0) then
-  dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
-  dens(:,0,:) = 0.0
-endif
+dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
+dens(:,0,:) = 0.0
 end subroutine
 
 subroutine dep_curr_env_chnk(coord,momenta,wghts,curr,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,&
