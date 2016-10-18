@@ -227,10 +227,10 @@ class Solver:
 
 	def maxwell_solver(self):
 		if 'SpaceCharge' in self.Configs['Features']:
-			self.Data['EG_fb']  = chimera.maxwell_push_with_spchrg(self.Data['EG_fb'],self.Data['J_fb'],self.Data['gradRho_fb_prv'],\
+			self.Data['EG_fb'] = chimera.maxwell_push_with_spchrg(self.Data['EG_fb'],self.Data['J_fb'],self.Data['gradRho_fb_prv'],\
 			  self.Data['gradRho_fb_nxt'],self.Data['PSATD_E'],self.Data['PSATD_G'])
 		else:
-			self.Data['EG_fb']  = chimera.maxwell_push_wo_spchrg(self.Data['EG_fb'],self.Data['J_fb'],self.Data['PSATD_E'],self.Data['PSATD_G'])
+			self.Data['EG_fb'] = chimera.maxwell_push_wo_spchrg(self.Data['EG_fb'],self.Data['J_fb'],self.Data['PSATD_E'],self.Data['PSATD_G'])
 
 	def poiss_corr(self):
 		if 'NoPoissonCorrection' in self.Configs['Features']: return
@@ -288,21 +288,27 @@ class Solver:
 		self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'][:,:,:,:3],self.Data['B_fb'],\
 		  self.Args['leftX'],*self.Args['FBout'])
 
-		self.Data['EB']  /= 2*np.pi
 		if 'KxShift' in self.Configs:
-			self.Data['EB']  *= 2.0
+			self.Data['EB'] = chimera.eb_corr_axis_env(self.Data['EB'])
 		else:
-			self.Data['EB'][:,:,1:] *= 2.0
+			self.Data['EB'] = chimera.eb_corr_axis(self.Data['EB'])
 
-		if 'KxShift' in self.Configs:
-			for mm in range(self.Data['EB'].shape[2]):
-				if mm==self.Args['Nko']:
-					self.Data['EB'][:,0,mm] = self.Data['EB'][:,1,mm]
-				else:
-					self.Data['EB'][:,0,mm] = -self.Data['EB'][:,1,mm]
-		else:
-			self.Data['EB'][:,0,0] = self.Data['EB'][:,1,0]
-			self.Data['EB'][:,0,1:] = -self.Data['EB'][:,1,1:]
+#		self.Data['EB']  /= 2*np.pi
+##		if 'KxShift' in self.Configs:
+#			self.Data['EB']  *= 2.0
+#		else:
+#			self.Data['EB'][:,:,1:] *= 2.0
+#
+#		if 'KxShift' in self.Configs:
+#			for mm in range(self.Data['EB'].shape[2]):
+#				if mm==self.Args['Nko']:
+#					self.Data['EB'][:,0,mm] = self.Data['EB'][:,1,mm]
+#				else:
+#					self.Data['EB'][:,0,mm] = -self.Data['EB'][:,1,mm]
+#		else:
+#			self.Data['EB'][:,0,0] = self.Data['EB'][:,1,0]
+#			self.Data['EB'][:,0,1:] = -self.Data['EB'][:,1,1:]
+
 
 	def FBGrad(self):
 		if 'KxShift' in self.Configs:
@@ -389,7 +395,7 @@ class Solver:
 			filt[-Nfilt:] = filt_shape[::-1]
 		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],\
 		  self.Args['kx'],filt)
-		self.Data['B_fb'] = chimera.fb_filtr(self.Data['B_fb'],self.Args['leftX'],\
+		self.Data['B_fb'][:] = chimera.fb_filtr(self.Data['B_fb'],self.Args['leftX'],\
 		  self.Args['kx'],filt)
 		self.B2G_FBRot()
 

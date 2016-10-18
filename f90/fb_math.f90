@@ -17,7 +17,7 @@ type(C_PTR) :: plan_in
 !f2py intent(in,out) :: vec_fb
 !f2py intent(hide) :: nkx,nr,nkO,nkr
 
-plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,FFTW_ESTIMATE)
+plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 vec_fb = 0.0d0
 shiftX = dcos(leftX*kx) - ii*dsin(leftX*kx)
 
@@ -37,6 +37,7 @@ do l=1,3
   enddo
 enddo
 !$omp end parallel 
+call fftw_destroy_plan(plan_in)
 end subroutine
 
 subroutine fb_scl_in(scl_fb,scl,leftX,kx,In,nkx,nr,nkO,nkr)
@@ -56,7 +57,7 @@ type(C_PTR) :: plan_in
 !f2py intent(in,out) :: scl_fb
 !f2py intent(hide) :: nkx,nr,nkO,nkr
 
-plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,FFTW_ESTIMATE)
+plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 scl_fb = 0.0d0
 shiftX = dcos(leftX*kx) - ii*dsin(leftX*kx)
 
@@ -74,6 +75,7 @@ do iO = 1,nkO
   !$omp end do 
 enddo
 !$omp end parallel 
+call fftw_destroy_plan(plan_in)
 end subroutine
 
 subroutine fb_vec_out(vec,vec_fb,leftX,kx,Out,nkx,nr,nkO,nkr)
@@ -94,7 +96,7 @@ type(C_PTR) :: plan_out
 !f2py intent(hide) :: nkx,nr,nkO,nkr
 
 vec = 0.0d0
-plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE)
+plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 shiftX = dcos(leftX*kx) + ii*dsin(leftX*kx)
 
 !$omp parallel shared(vec_fb,vec,Out,plan_out,shiftX,nkr,nr,nkO), private(iO,l)
@@ -114,6 +116,7 @@ do l=1,3
   enddo
 enddo
 !$omp end parallel
+call fftw_destroy_plan(plan_out)
 end subroutine
 
 subroutine fb_eb_out(eb_spc,e_fb,b_fb,leftX,kx,Out,nkx,nr,nkO,nkr)
@@ -134,7 +137,7 @@ type(C_PTR) :: plan_out
 !f2py intent(hide) :: nkx,nr,nkO,nkr
 
 eb_spc = 0.0d0
-plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE)
+plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 shiftX = dcos(leftX*kx) + ii*dsin(leftX*kx)
 
 !$omp parallel shared(eb_spc,e_fb,b_fb,Out,plan_out,shiftX,nkr,nr,nkO), private(iO,l)
@@ -161,6 +164,8 @@ do l=1,3
   enddo
 enddo
 !$omp end parallel
+
+call fftw_destroy_plan(plan_out)
 end subroutine
 
 subroutine fb_scl_out(scl,scl_fb,leftX,kx,Out,nkx,nr,nkO,nkr)
@@ -181,7 +186,7 @@ type(C_PTR) :: plan_out
 !f2py intent(hide) :: nkx,nr,nkO,nkr
 
 scl = 0.0d0
-plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE)
+plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 shiftX = dcos(leftX*kx) + ii*dsin(leftX*kx)
 
 !$omp parallel shared(scl_fb,scl,Out,plan_out,shiftX,nkr,nr,nkO), private(iO)
@@ -199,6 +204,7 @@ do iO = 1,nkO
   !$omp end do 
 enddo
 !$omp end parallel
+call fftw_destroy_plan(plan_out)
 end subroutine
 
 subroutine fb_filtr(vec,leftX,kx,filtr,nkx,nkr,nkO)
@@ -220,8 +226,8 @@ type(C_PTR) :: plan_in, plan_out
 shiftX = dcos(leftX*kx) + ii*dsin(leftX*kx)
 shiftX_inv = 1.0d0/(DBLE(nkx)*shiftX)
 
-plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,FFTW_ESTIMATE)
-plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE)
+plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
+plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 
 !$omp parallel shared(vec,plan_in,plan_out,shiftX,shiftX_inv,filtr,nkx,nkr,nkO),private(iO,l)
 do l=1,3
@@ -237,6 +243,8 @@ do l=1,3
   enddo
 enddo
 !$omp end parallel
+call fftw_destroy_plan(plan_out)
+call fftw_destroy_plan(plan_in)
 end subroutine
 
 subroutine fb_rot(vec_fb_loc,vec_fb,DpS2S,DmS2S,kx,nkx,nkr,nkO,nkr_loc)
@@ -546,6 +554,100 @@ do iO=-nkO,nkO
     endif
   enddo
   !$omp end do
+enddo
+!$omp end parallel
+end subroutine
+
+subroutine eb_corr_axis(eb_spc,nx,nr,nkO)
+implicit none 
+integer, intent(in)        :: nx,nr,nkO
+complex(kind=8),intent(inout):: eb_spc(0:nx,0:nr,nkO,6) 
+real (kind=8) :: pi=4.d0*DATAN(1.d0), pi2_inv,pi_inv
+integer :: l,ix,ir,iO
+
+!f2py intent(in,out) :: eb_spc
+!f2py intent(hide) :: nx,nr,nkO
+
+pi_inv = 1./pi
+pi2_inv = 0.5*pi_inv
+
+!$omp parallel default(shared) private(ir,iO,l)
+do l=1,6
+  !$omp do schedule(static)
+  do ir=0,nr
+    eb_spc(:,ir,1,l) = pi2_inv*eb_spc(:,ir,1,l)
+
+    if (nkO>1) then
+      do iO = 2,nkO
+        eb_spc(:,ir,iO,l) = pi_inv*eb_spc(:,ir,iO,l)
+      enddo
+    endif
+  enddo
+  !$omp end do
+enddo
+!$omp end parallel
+
+!$omp parallel default(shared) private(ix,l,iO)
+do l=1,6
+  !$omp do schedule(static)
+  do ix=0,nx
+    eb_spc(ix,0,1,l) = eb_spc(ix,1,1,l)
+  enddo
+  !$omp end do
+  if (nkO>1) then
+    do iO = 2,nkO
+      !$omp do schedule(static)
+      do ix=0,nx
+        eb_spc(ix,0,iO,l) = -eb_spc(ix,1,iO,l)
+      enddo
+      !$omp end do
+    enddo
+  endif
+enddo
+!$omp end parallel
+end subroutine
+
+subroutine eb_corr_axis_env(eb_spc,nx,nr,nkO)
+implicit none 
+integer, intent(in)        :: nx,nr,nkO
+complex(kind=8),intent(inout):: eb_spc(0:nx,0:nr,-nkO:nkO,6) 
+real (kind=8) :: pi=4.d0*DATAN(1.d0),pi_inv
+integer :: l,ix,ir,iO
+
+!f2py intent(in,out) :: eb_spc
+!f2py intent(hide) :: nx,nr,nkO
+
+pi_inv = 1./pi
+
+!$omp parallel default(shared) private(ir,iO,l)
+do l=1,6
+  do iO = -nkO,nkO
+    !$omp do schedule(static)
+    do ir=0,nr
+      eb_spc(:,ir,iO,l) = pi_inv*eb_spc(:,ir,iO,l)
+    enddo
+    !$omp end do
+  enddo
+enddo
+!$omp end parallel
+
+!$omp parallel default(shared) private(ix,l,iO)
+do l=1,6
+  do iO = -nkO,nkO
+    if (nkO==0) then
+      !$omp do schedule(static)
+      do ix=0,nx
+        eb_spc(ix,0,iO,l) = eb_spc(ix,1,iO,l)
+      enddo
+      !$omp end do
+    else
+      !$omp do schedule(static)
+      do ix=0,nx
+        eb_spc(ix,0,iO,l) = -eb_spc(ix,1,iO,l)
+      enddo
+      !$omp end do
+    endif
+  enddo      
 enddo
 !$omp end parallel
 end subroutine
