@@ -384,7 +384,9 @@ class Solver:
 
 	def absorb_field(self,Lf,config='left'):
 		Nfilt = int(Lf/self.Args['dx'])
-		filt_shape = (0.5-0.5*np.cos(np.r_[0:np.pi:Nfilt*1j]))**2
+		flt_gr = np.arange(Nfilt)
+		filt_shape = (flt_gr>=0.625*Nfilt) + (flt_gr>=0.375*Nfilt)*(flt_gr<0.625*Nfilt)*np.sin(0.5*np.pi*(flt_gr-0.375*Nfilt)/(0.25*Nfilt))**2
+#		filt_shape = (0.5-0.5*np.cos(np.r_[0:np.pi:Nfilt*1j]))**2
 		filt = np.ones(self.Args['Nx'])
 		if config=='left':
 			filt[:Nfilt] = filt_shape
