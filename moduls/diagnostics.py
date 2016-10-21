@@ -116,3 +116,26 @@ class Diagnostics:
 					np.savetxt(fout,chimera.intens_profo(dat,Ntheta).ravel()[None])
 					fout.close()
 		if 'Return' in diag['Features']: return ToReturn
+
+	def get_beam_envelops(self):
+		for jj in range(len(self.Chimera.Particles)):
+			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
+			x,y,z = self.Chimera.Particles[jj].Data['coords_halfstep']
+			px,py,pz = self.Chimera.Particles[jj].Data['momenta']
+			w = self.Chimera.Particles[jj].Data['weights']
+			xyz_0 = [\
+			  (x*w).sum()/w.sum(),
+			  (y*w).sum()/w.sum(),
+			  (z*w).sum()/w.sum()]
+			xyz_rms = [\
+			  np.sqrt((x**2*w).sum()/w.sum()-xyz_0[0]**2),
+			  np.sqrt((y**2*w).sum()/w.sum()-xyz_0[1]**2),
+			  np.sqrt((z**2*w).sum()/w.sum()-xyz_0[2]**2)]
+			xyz_emmit = [\
+			  np.sqrt((x**2*w).sum()/w.sum()*(px**2*w).sum()/w.sum()-(x*px*w).sum()**2/w.sum()**2),
+			  np.sqrt((y**2*w).sum()/w.sum()*(py**2*w).sum()/w.sum()-(y*py*w).sum()**2/w.sum()**2),
+			  np.sqrt((z**2*w).sum()/w.sum()*(pz**2*w).sum()/w.sum()-(z*pz*w).sum()**2/w.sum()**2)]
+			PackEnvs = np.array([xyz_0,xyz_rms,xyz_emmit])
+			ToReturn.append(PackEnvs)
+			PackEnvs = None
+		return ToReturn

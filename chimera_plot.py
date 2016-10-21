@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
-from scipy.signal import medfilt
+from scipy.signal import medfilt,medfilt2d
 
 mymap = plt.cm.Reds;mymap._init();mymap._lut[:,-1] = abs(np.sin(np.r_[0:.5*np.pi:259j]))
 mymap1 = plt.cm.seismic;mymap1._init();mymap1._lut[:,-1] = abs(np.sin(np.r_[-0.5*np.pi:0.5*np.pi:259j]))
@@ -9,8 +9,9 @@ mymap2 = plt.cm.PiYG;mymap2._init();mymap2._lut[:,-1] = abs(np.sin(np.r_[-0.5*np
 Ntheta = 60
 
 inpt = __import__(sys.argv[1])
-specie_in = inpt.specie_in
+specie_in = inpt.electrons_in
 BoxGrid = inpt.BoxGrid
+PlasmaGrid = inpt.PlasmaGrid
 dt =inpt.dt
 MovingFrame = inpt.MovingFrame
 solver = inpt.solver
@@ -25,7 +26,7 @@ def dens_plot(t,th=0,vmax = 3,**auxargs):
 	tstr = str(t)
 	while len(tstr)<7: tstr='0'+tstr
 	n_max = vmax*specie_in['Density']
-	extnt = np.array([BoxGrid[0],BoxGrid[1],-BoxGrid[2],BoxGrid[2]])
+	extnt = np.array([PlasmaGrid[0],PlasmaGrid[1],-PlasmaGrid[2],PlasmaGrid[2]])
 	extnt[:2] += t*dt*vb
 	if 'AbsorbLayer' in MovingFrame:
 		xlim = np.array([extnt[0]+MovingFrame['AbsorbLayer'], extnt[1]])
@@ -86,6 +87,29 @@ def envel_plot(t,th=0,s=2,**auxargs):
 		dat0 += np.real(phase[i]*np.hstack((dat[:,::-1,i,s],(-1)**i*dat[:,:,i,s])))
 	for i in np.arange(dat0.shape[1]): dat0[:,i] = medfilt(np.abs(dat0[:,i]), 4*int(0.5/inpt.dt)+1 )
 	plt.imshow(dat0.T, origin='lower',aspect='auto',extent=extnt,cmap=mymap,**auxargs)
+	plt.xlim(xlim)
+
+def envel_contour(t,th=0,s=2,**auxargs):
+	tstr = str(t)
+	while len(tstr)<7: tstr='0'+tstr
+	extnt = np.array([BoxGrid[0],BoxGrid[1],-BoxGrid[2],BoxGrid[2]])
+	extnt[:2] += t*dt*vb
+	if 'AbsorbLayer' in MovingFrame:
+		xlim = np.array([extnt[0]+MovingFrame['AbsorbLayer'], extnt[1]])
+	else:
+		xlim = np.array([extnt[0], extnt[1]])
+	extnt *= 0.8e-3
+	xlim *= 0.8e-3
+
+	dat = np.load(out_folder+'ee_'+comp+'_'+tstr+'.npy')
+	phase = np.exp(-0.5j*np.pi*th*np.arange(dat.shape[2]))
+	dat0 = np.zeros((dat.shape[0], 2*dat.shape[1]))
+	for i in xrange(len(phase)):
+		dat0 += np.real(phase[i]*np.hstack((dat[:,::-1,i,s],(-1)**i*dat[:,:,i,s])))
+	#for i in np.arange(dat0.shape[1]): dat0[:,i] = medfilt(np.abs(dat0[:,i]), 4*int(0.5/inpt.dt)+1 )
+	#x,y = np.mgrid[extnt[0]:extnt[1]:1j*dat0.shape[1],extnt[0]:extnt[1]:1j*dat0.shape[0]]
+	dat0 = medfilt(np.abs(dat0),(3*int(0.5/inpt.dt)+1,1))
+	plt.contour(dat0.T, origin='lower',aspect='auto',extent=extnt,cmap=mymap,**auxargs)
 	plt.xlim(xlim)
 
 def get_pwrO():

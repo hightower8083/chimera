@@ -2,7 +2,6 @@ import numpy as np
 from inspect import getargspec
 import chimera.moduls.fimera as chimera
 from scipy.constants import m_e,c,e,epsilon_0
-from numba import jit
 
 class Specie:
 	def __init__(self,PartSpcs):
@@ -122,7 +121,6 @@ class Specie:
 
 	def make_field(self,i_step=0):
 		if self.Data['EB'].shape[-1]!=self.Data['coords'].shape[-1]:
-			self.Data['EB'] = None
 			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
 		else:
 			self.Data['EB'][:] = 0.0
@@ -200,3 +198,11 @@ class Specie:
 				coords[3,ip:ip+self.Num_p] = np.ones(self.Num_p)*rc
 				ip += self.Num_p
 		return coords,ip
+
+	def beam_focus(self,x_foc):
+		gg = (1+self.Data['momenta']**2).sum(0)**0.5
+		pzmean = (self.Data['momenta'][0]*self.Data['weights']).sum()/self.Data['weights'].sum()
+		self.Data['coords'][0] = self.Data['coords'][0] - \
+		  x_foc*(self.Data['momenta'][0]-pzmean)/pzmean/gg**2
+		self.Data['coords'][1:3] = self.Data['coords'][1:3] - self.Data['momenta'][1:3]/pzmean*x_foc
+		self.Data['coords_halfstep'][:] = self.Data['coords']
