@@ -118,6 +118,7 @@ class Diagnostics:
 		if 'Return' in diag['Features']: return ToReturn
 
 	def get_beam_envelops(self):
+		ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
 			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
 			x,y,z = self.Chimera.Particles[jj].Data['coords_halfstep']

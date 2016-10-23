@@ -22,6 +22,28 @@ else:
 	vb=1.
 comp = sys.argv[2]
 
+def dens_plot1(t,th=0,vmax = 3,**auxargs):
+	tstr = str(t)
+	while len(tstr)<7: tstr='0'+tstr
+	n_max = vmax*specie_in['Density']
+	extnt = np.array([PlasmaGrid[0],PlasmaGrid[1],-PlasmaGrid[2],PlasmaGrid[2]])
+	extnt[:2] += t*dt*vb
+	if 'AbsorbLayer' in MovingFrame:
+		xlim = np.array([extnt[0]+MovingFrame['AbsorbLayer'], extnt[1]])
+	else:
+		xlim = np.array([extnt[0], extnt[1]])
+	extnt *= 0.8e-3
+	xlim *= 0.8e-3
+	plt.clf()
+	dat = np.load(out_folder+'dens_'+comp+'_'+tstr+'.npy')
+	phase_p = np.exp(1.j*th*np.arange(dat.shape[2]))
+	phase_m = np.exp(-1.j*th*np.arange(dat.shape[2]))
+	dat0 = np.zeros((dat.shape[0], 2*dat.shape[1]-1))
+	for i in xrange(dat.shape[2]):
+		dat0 += np.real(np.hstack((dat[:,::-1,i]*phase_p[i],dat[:,1:,i]*phase_m[i] )))
+	plt.imshow(dat0.T, origin='lower',aspect='auto',vmin=-n_max,vmax=0.,extent=extnt,**auxargs)
+	plt.xlim(xlim)
+
 def dens_plot(t,th=0,vmax = 3,**auxargs):
 	tstr = str(t)
 	while len(tstr)<7: tstr='0'+tstr
