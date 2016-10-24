@@ -1,5 +1,8 @@
 # CHIMERA: a code for FEL and laser plasma simulations
 
+[![Build Status master](https://img.shields.io/travis/hightower8083/chimera/master.svg?label=master)](https://travis-ci.org/hightower8083/chimera/branches)
+[![Build Status dev](https://img.shields.io/travis/hightower8083/chimera/dev.svg?label=dev)](https://travis-ci.org/hightower8083/chimera/branches)
+
 by Igor A Andriyash (<igor.andriyash@gmail.com>)
 
 CHIMERA is a relativistic electromagnetic particle-in-cell code, based on a quasi-cylindric pseudo-spectral analytical time domain (PSATD) Maxwell solver.
