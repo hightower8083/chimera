@@ -50,7 +50,10 @@ class Diagnostics:
 		if 'MaxMode' in diag['Features']:
 			modes = diag['Features']['MaxMode']
 		else:
-			modes = 0
+			if len(self.Chimera.Solvers)>0:
+				modes = self.Chimera.Solvers[0].Configs['MaxAzimuthMode']
+			else:
+				modes = 0
 		if 'Return' in diag['Features']:ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
 			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
