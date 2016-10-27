@@ -19,6 +19,7 @@ class ChimeraRun():
 				if 'Features'   not in wind: wind['Features']   = ()
 				if 'TimeActive' not in wind: wind['TimeActive'] = (0.0,np.inf)
 				if 'Velocity'   not in wind: wind['Velocity']   = 1.0
+				if 'BoundsFreq' not in wind: wind['BoundsFreq'] = wind['Steps']
 				if 'Staged' in wind['Features']:
 					wind['shiftX'] = 0.5*wind['Velocity']*wind['TimeStep']*wind['Steps']
 				else:
@@ -173,11 +174,11 @@ class ChimeraRun():
 					index2stay = index2stay.argsort()[go_out:]
 					num2stay = index2stay.shape[0]
 				else:
-					index2stay,numout = chimera.sortpartsout_vec(species.Data['coords'],SimDom)
-					index2stay = index2stay.argsort()[numout:]
-					num2stay = index2stay.shape[0]
-#					index2stay,num2stay = chimera.sortpartsout(species.Data['coords'],SimDom)
-#					index2stay = index2stay[:num2stay]
+#					index2stay,numout = chimera.sortpartsout_vec(species.Data['coords'],SimDom)
+#					index2stay = index2stay.argsort()[numout:]
+#					num2stay = index2stay.shape[0]
+					index2stay,num2stay = chimera.sortpartsout(species.Data['coords'],SimDom)
+					index2stay = index2stay[:num2stay]
 
 				species.Data['coords'] = chimera.align_data_vec(species.Data['coords'],index2stay)
 				species.Data['coords_halfstep'] = chimera.align_data_vec(species.Data['coords_halfstep'],index2stay)
@@ -188,27 +189,6 @@ class ChimeraRun():
 				species.Data['coords_halfstep'] = species.Data['coords_halfstep'][:,:num2stay]
 				species.Data['momenta'] = species.Data['momenta'][:,:num2stay]
 				species.Data['weights'] = species.Data['weights'][:num2stay]
-
-	def damp_plasma1(self,wind):
-		if 'AbsorbLayer' in wind:
-			for species in self.Particles:
-				if species.Data['coords'].shape[-1]==0: continue
-				SimDom = np.asfortranarray([species.Args['leftX']+wind['AbsorbLayer'],species.Args['rightX'],\
-				  0.0, species.Args['upperR']**2])
-				index2stay,num2stay = chimera.sortpartsout(species.Data['coords'],SimDom)
-				index2stay = index2stay[:num2stay]
-
-				species.Data['coords'] = chimera.align_data_vec(species.Data['coords'],index2stay)
-				species.Data['coords_halfstep'] = chimera.align_data_vec(species.Data['coords_halfstep'],index2stay)
-				species.Data['momenta'] = chimera.align_data_vec(species.Data['momenta'],index2stay)
-				species.Data['weights'] = chimera.align_data_scl(species.Data['weights'],index2stay)
-
-				species.Data['coords'] = species.Data['coords'][:,:num2stay]
-				species.Data['coords_halfstep'] = species.Data['coords_halfstep'][:,:num2stay]
-				species.Data['momenta'] = species.Data['momenta'][:,:num2stay]
-				species.Data['weights'] = species.Data['weights'][:num2stay]
-		if 'NoSorting' not in wind['Features']:
-			for species in self.Particles: species.chunk_coords()
 
 	def postframe_corr(self,wind):
 		if 'AbsorbLayer' or 'AddPlasma' in wind:
@@ -246,7 +226,7 @@ class ChimeraRun():
 				self.move_frame(wind)
 				self.add_plasma(wind)
 				self.damp_plasma(wind)
-#				self.postframe_corr(wind)
+				self.postframe_corr(wind)
 			elif act=='stage2' and 'Staged' in wind['Features']:
 				self.move_frame(wind)
 
