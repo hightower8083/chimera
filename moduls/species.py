@@ -157,6 +157,7 @@ class Specie:
 
 	def chunk_coords(self,position=None):
 		if 'Xchunked' in self.Configs:
+			if self.Data['coords'].shape[-1] == 0: return
 			if position=='cntr':
 				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(self.Data['coords_halfstep'],\
 				  self.Args['Xgrid'],self.Configs['Xchunked'][0])
@@ -187,9 +188,12 @@ class Specie:
 		for ix in np.arange(Xgrid.shape[0]-1):
 			for ir in np.arange(Rgrid.shape[0]-1):
 				rand_cell = np.random.rand(3,self.Num_p)
-				xx_cell = Xgrid[ix] + self.Args['dx']*(np.arange(self.Num_p)[None,:]+0.5*rand_cell[0])/self.Num_p
-				rr_cell = Rgrid[ir] + self.Args['dr']*(np.arange(self.Num_p)[None,:]+0.5*rand_cell[1])/self.Num_p
-				oo_cell = 2*np.pi*rand_cell[2]
+				xx_cell = Xgrid[ix] + self.Args['dx']*(np.arange(self.Num_p)+0.5*rand_cell[0])/self.Num_p
+				rr_cell = Rgrid[ir] + self.Args['dr']*(np.arange(self.Num_p)+0.5*rand_cell[1])/self.Num_p
+				oo_cell = 2*np.pi*(np.arange(self.Num_p)+0.5*rand_cell[2])/self.Num_p
+				np.random.shuffle(xx_cell)
+				np.random.shuffle(rr_cell)
+				np.random.shuffle(oo_cell)
 				coords[0,ip:ip+self.Num_p] = xx_cell
 				coords[1,ip:ip+self.Num_p] = rr_cell*np.cos(oo_cell)
 				coords[2,ip:ip+self.Num_p] = rr_cell*np.sin(oo_cell)

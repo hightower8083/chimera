@@ -5,7 +5,8 @@
 
 by Igor A Andriyash (<igor.andriyash@gmail.com>)
 
-CHIMERA is a relativistic electromagnetic particle-in-cell code, based on a quasi-cylindric pseudo-spectral analytical time domain (PSATD) Maxwell solver.
+CHIMERA is a relativistic electromagnetic particle-in-cell code, based on a quasi-cylindric pseudo-spectral analytical time domain (PSATD) Maxwell solver. More details on 
+this method can be found in the original publications [<cite>[1]</cite>,<cite>[2]</cite>]. 
 
 System requirements
 - code runs under Linux or MacOS
@@ -16,6 +17,15 @@ System requirements
 To install CHIMERA
 - clone the code folder into your working directory and add it to the PYTHONPATH
 - Check that Makefile contains a correct address to FFTW3 /lib/ and /bin/
-- compile the Fortran modules using 'make'command. 
+- compile the Fortran modules using *make*. 
 
 To run CHIMERA in multiprocessor mode specify the OMP_NUM_THREADS variable. For more information see demo in ./doc/
+
+\[[1]\] Igor A. Andriyash, Remi Lehe and Agustin Lifschitz, *Laser-plasma interactions with a Fourier-Bessel particle-in-cell method*, Physics of Plasmas **23**, 033110 
+(2016)
+
+\[[2]\] Rémi Lehe, Manuel Kirchen, Igor A. Andriyash, Brendan B. Godfrey, Jean-Luc Vay, *A spectral, quasi-cylindrical and dispersion-free Particle-In-Cell algorithm*, 
+Computer Physics Communications **203**, 66 (2016)
+
+[1]:http://dx.doi.org/10.1063/1.4943281
+[2]:http://dx.doi.org/10.1016/j.cpc.2016.02.007
