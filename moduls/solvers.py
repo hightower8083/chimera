@@ -293,23 +293,6 @@ class Solver:
 		else:
 			self.Data['EB'] = chimera.eb_corr_axis(self.Data['EB'])
 
-#		self.Data['EB']  /= 2*np.pi
-##		if 'KxShift' in self.Configs:
-#			self.Data['EB']  *= 2.0
-#		else:
-#			self.Data['EB'][:,:,1:] *= 2.0
-#
-#		if 'KxShift' in self.Configs:
-#			for mm in range(self.Data['EB'].shape[2]):
-#				if mm==self.Args['Nko']:
-#					self.Data['EB'][:,0,mm] = self.Data['EB'][:,1,mm]
-#				else:
-#					self.Data['EB'][:,0,mm] = -self.Data['EB'][:,1,mm]
-#		else:
-#			self.Data['EB'][:,0,0] = self.Data['EB'][:,1,0]
-#			self.Data['EB'][:,0,1:] = -self.Data['EB'][:,1,1:]
-
-
 	def FBGrad(self):
 		if 'KxShift' in self.Configs:
 			self.Data['vec_fb'] = chimera.fb_grad_env(self.Data['vec_fb'],self.Data['scl_fb'],*self.Args['FBDiff'])
