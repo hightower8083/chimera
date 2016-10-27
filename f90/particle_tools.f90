@@ -112,41 +112,6 @@ do ir=1,nr-1
 enddo
 end subroutine
 
-subroutine sortpartsout_vec(indx2stay,numout,coord,lims,np)
-implicit none
-integer, intent(in) :: np
-real (kind=8), intent(in) :: lims(4), coord(3,np)
-integer(kind=1), intent(out) :: indx2stay(np)
-integer, intent(out) :: numout
-integer :: ip, numout_loc
-real (kind=8) :: x,r2
-
-!f2py intent(in) :: coord,lims
-!f2py intent(out)  :: indx2stay,numout
-!f2py intent(hide) :: np
-
-numout = 0
-indx2stay = -1
-
-!$omp parallel default(shared) private(numout_loc,ip,x,r2)
-numout_loc = 0
-!$omp do schedule(static)
-do ip=1,np
-  x = coord(1,ip)
-  r2 = coord(2,ip)*coord(2,ip)+coord(3,ip)*coord(3,ip)
-  if ((x>=lims(1)).and.(x<= lims(2)).and.(r2>=lims(3)).and.(r2<=lims(4))) then
-    indx2stay(ip) = 1
-  else
-    numout_loc = numout_loc+1
-  endif
-enddo
-!$omp end do
-
-!$omp atomic
-numout = numout + numout_loc
-!$omp end parallel
-end subroutine
-
 subroutine sortpartsout(indx2stay,num2stay,coord,lims,np)
 implicit none
 integer, intent(in) :: np
@@ -166,8 +131,8 @@ do ip=1,np
   x = coord(1,ip)
   r2 = coord(2,ip)*coord(2,ip)+coord(3,ip)*coord(3,ip)
   if ((x>=lims(1)).and.(x<= lims(2)).and.(r2>=lims(3)).and.(r2<=lims(4))) then
-    num2stay = num2stay + 1
-    indx2stay(ip) = ip-1
+    num2stay = num2stay+1
+    indx2stay(num2stay) = ip-1
   endif
 enddo
 end subroutine
