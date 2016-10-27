@@ -90,15 +90,6 @@ dr_2 = 0.5*(Rgrid(2)-Rgrid(1))
 indPart = 0
 do ir=1,nr-1
   do ix=1,nx-1
-!    if (Rgrid(ir)>=0.0) then
-!      r0 = Rgrid(ir)
-!      ppc_loc = PPC
-!      wghcoef = 1.0
-!    else
-!      r0 = 0.0
-!      ppc_loc = PPC/2
-!      wghcoef = 0.5
-!    endif
     r0 = Rgrid(ir)+dr_2
     r1 = Rgrid(ir+1)+dr_2
     x0 = Xgrid(ix)
@@ -180,8 +171,7 @@ do ip=1,np
   ichnk = floor((coord(1,ip)-Xgrid(0))*chunk_lnght_inv)
   if (ichnk<0) then
     OutToLeft_loc = OutToLeft_loc +1
-!  elseif (ichnk>nchnk-1) then 
-  elseif (coord(1,ip)>Xgrid(nx)) then 
+  elseif (ichnk>nchnk-1) then 
     OutToRight_loc = OutToRight_loc +1
   else
     NumInChnk_loc(ichnk+1) = NumInChnk_loc(ichnk+1) +1
