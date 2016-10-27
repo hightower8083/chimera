@@ -112,6 +112,41 @@ do ir=1,nr-1
 enddo
 end subroutine
 
+subroutine sortpartsout_vec(indx2stay,numout,coord,lims,np)
+implicit none
+integer, intent(in) :: np
+real (kind=8), intent(in) :: lims(4), coord(3,np)
+integer(kind=1), intent(out) :: indx2stay(np)
+integer, intent(out) :: numout
+integer :: ip, numout_loc
+real (kind=8) :: x,r2
+
+!f2py intent(in) :: coord,lims
+!f2py intent(out)  :: indx2stay,numout
+!f2py intent(hide) :: np
+
+numout = 0
+indx2stay = -1
+
+!$omp parallel default(shared) private(numout_loc,ip,x,r2)
+numout_loc = 0
+!$omp do schedule(static)
+do ip=1,np
+  x = coord(1,ip)
+  r2 = coord(2,ip)*coord(2,ip)+coord(3,ip)*coord(3,ip)
+  if ((x>=lims(1)).and.(x<= lims(2)).and.(r2>=lims(3)).and.(r2<=lims(4))) then
+    indx2stay(ip) = 1
+  else
+    numout_loc = numout_loc+1
+  endif
+enddo
+!$omp end do
+
+!$omp atomic
+numout = numout + numout_loc
+!$omp end parallel
+end subroutine
+
 subroutine sortpartsout(indx2stay,num2stay,coord,lims,np)
 implicit none
 integer, intent(in) :: np
@@ -131,9 +166,64 @@ do ip=1,np
   x = coord(1,ip)
   r2 = coord(2,ip)*coord(2,ip)+coord(3,ip)*coord(3,ip)
   if ((x>=lims(1)).and.(x<= lims(2)).and.(r2>=lims(3)).and.(r2<=lims(4))) then
-    num2stay = num2stay+1
-    indx2stay(num2stay) = ip-1
+    num2stay = num2stay + 1
+    indx2stay(ip) = ip-1
   endif
+enddo
+end subroutine
+
+subroutine chunk_coords_boundaries(chunked_indx,IndInChnk,GoOut,coord,lims,Xgrid,nchnk,np,nx)
+implicit none
+integer, intent(in) :: np,nx,nchnk
+real (kind=8), intent(in) :: coord(3,np),lims(4),Xgrid(0:nx)
+integer, intent(out) :: IndInChnk(0:nchnk),GoOut
+integer(kind=1), intent(out) :: chunked_indx(np)
+real (kind=8)    :: chunk_lnght_inv,x,r2
+integer  :: ip,ichnk,NumInChnk(nchnk),NumInChnk_loc(nchnk),Out_loc
+
+!f2py intent(in) :: coord,lims,Xgrid,nchnk
+!f2py intent(out) :: chunked_indx,IndInChnk,GoOut
+!f2py intent(hide) :: np,nx
+
+chunked_indx = -2
+IndInChnk    = 0
+NumInChnk    = 0
+GoOut    = 0
+if (nchnk>1) then
+  chunk_lnght_inv = 1./(Xgrid((nx+1)/nchnk)-Xgrid(0))
+else
+  chunk_lnght_inv = 1./(Xgrid(nx)-Xgrid(0))
+endif
+
+!$omp parallel default(shared) private(NumInChnk_loc,Out_loc,ip,ichnk,x,r2)
+NumInChnk_loc  = 0
+Out_loc  = 0
+!$omp do schedule(static)
+do ip=1,np
+  ichnk = floor((coord(1,ip)-Xgrid(0))*chunk_lnght_inv)
+  x = coord(1,ip)
+  r2 = coord(2,ip)*coord(2,ip)+coord(3,ip)*coord(3,ip)
+  if ((x>=lims(1)).and.(x<= lims(2)).and.(r2>=lims(3)).and.(r2<=lims(4))) then
+    NumInChnk_loc(ichnk+1) = NumInChnk_loc(ichnk+1) +1
+    chunked_indx(ip) = int(ichnk,1)
+  else 
+    Out_loc = Out_loc +1
+  endif
+enddo
+!$omp end do 
+
+!$omp atomic
+GoOut = GoOut+Out_loc
+
+do ichnk=1,nchnk
+  !$omp atomic
+  NumInChnk(ichnk) = NumInChnk(ichnk) + NumInChnk_loc(ichnk)
+enddo
+!$omp end parallel
+
+IndInChnk(0) = 0
+do ichnk=1,nchnk
+  IndInChnk(ichnk) = IndInChnk(ichnk-1) + NumInChnk(ichnk)
 enddo
 end subroutine
 
