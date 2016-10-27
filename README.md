@@ -6,7 +6,7 @@
 by Igor A Andriyash (<igor.andriyash@gmail.com>)
 
 CHIMERA is a relativistic electromagnetic particle-in-cell code, based on a quasi-cylindric pseudo-spectral analytical time domain (PSATD) Maxwell solver. More details on 
-this method can be found in the original publications [<cite>[1]</cite>,<cite>[2]</cite>]. 
+this method can be found in the original publications [<cite>[1]</cite>,<cite>[2]</cite>,<cite>[3]</cite>]. 
 
 System requirements
 - code runs under Linux or MacOS
@@ -21,11 +21,15 @@ To install CHIMERA
 
 To run CHIMERA in multiprocessor mode specify the OMP_NUM_THREADS variable. For more information see demo in ./doc/
 
-\[[1]\] Igor A. Andriyash, Remi Lehe and Agustin Lifschitz, *Laser-plasma interactions with a Fourier-Bessel particle-in-cell method*, Physics of Plasmas **23**, 033110 
+\[[1]\] Igor A. Andriyash, Rémi Lehe and Agustin Lifschitz, *Laser-plasma interactions with a Fourier-Bessel particle-in-cell method*, Physics of Plasmas **23**, 033110 
 (2016)
 
-\[[2]\] Rémi Lehe, Manuel Kirchen, Igor A. Andriyash, Brendan B. Godfrey, Jean-Luc Vay, *A spectral, quasi-cylindrical and dispersion-free Particle-In-Cell algorithm*, 
+\[[2]\] Rémi Lehe, Manuel Kirchen, Igor A. Andriyash, Brendan B. Godfrey and Jean-Luc Vay, *A spectral, quasi-cylindrical and dispersion-free Particle-In-Cell algorithm*, 
 Computer Physics Communications **203**, 66 (2016)
+
+\[[3]\] Igor A. Andriyash, Rémi Lehe and Victor Malka, *A spectral unaveraged algorithm for free electron laser simulations*, Journal of Computational Physics **282**, 397 (2015)
 
 [1]:http://dx.doi.org/10.1063/1.4943281
 [2]:http://dx.doi.org/10.1016/j.cpc.2016.02.007
+[3]:http://dx.doi.org/10.1016/j.jcp.2014.11.026
+
