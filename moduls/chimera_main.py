@@ -159,7 +159,7 @@ class ChimeraRun():
 		if 'AbsorbLayer' in wind and wind['AbsorbLayer']>0:
 			for solver in self.Solvers:
 				if 'StaticKick' in solver.Configs['Features']: continue
-				solver.absorb_field(wind['AbsorbLayer'],'left')
+				solver.absorb_field(wind['AbsorbLayer'],'both')
 
 	def damp_plasma(self,wind):
 		if 'AbsorbLayer' in wind:
