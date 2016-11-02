@@ -171,3 +171,69 @@ def fld_plot_old(t,th=0,s=2,vmax=None,**auxargs):
 		vmin=-vmax
 	plt.imshow(dat0.T, origin='lower',aspect='auto',vmax=vmax,vmin=vmin,extent=extnt,**auxargs)
 	plt.xlim(xlim)
+
+class iplots:
+	def __init__(self,t,**auxargs):
+		self.press  = False
+		self.press_hold = False
+		self.dens_plot_cont(t,**auxargs)
+		self.connect()
+
+	def connect(self):
+		'connect to all the events we need'
+		self.cidpress = self.fig.canvas.mpl_connect(
+		  'button_press_event', self.on_press)
+		self.cidrelease = self.fig.canvas.mpl_connect(
+		  'button_release_event', self.on_release)
+		self.cidmotion = self.fig.canvas.mpl_connect(
+		  'motion_notify_event', self.on_motion)
+
+	def dens_plot_cont(self,t,th=0,vmax=3,**auxargs):
+		tstr = str(t)
+		while len(tstr)<7: tstr='0'+tstr
+		n_max = vmax*specie_in['Density']
+		self.val = n_max
+		self.val_on_motion = n_max
+
+		extnt = np.array([PlasmaGrid[0],PlasmaGrid[1],-PlasmaGrid[2],PlasmaGrid[2]])
+		extnt[:2] += t*dt*vb
+		if 'AbsorbLayer' in MovingFrame:
+			xlim = np.array([extnt[0]+MovingFrame['AbsorbLayer'], extnt[1]])
+		else:
+			xlim = np.array([extnt[0], extnt[1]])
+		extnt *= 0.8e-3
+		xlim *= 0.8e-3
+		dat = np.load(out_folder+'dens_'+comp+'_'+tstr+'.npy')
+
+		phase_p = np.exp(1.j*th*np.arange(dat.shape[2]))
+		phase_m = np.exp(1.j*(th+np.pi)*np.arange(dat.shape[2]))
+		self.dat0 = np.zeros((dat.shape[0], 2*dat.shape[1]))
+		for i in xrange(dat.shape[2]):
+			self.dat0 += np.real(np.hstack((dat[:,::-1,i]*phase_m[i],dat[:,:,i]*phase_p[i] )))	
+
+		self.fig, ax = plt.subplots(1,1)
+		self.pl = ax.imshow(np.abs(self.dat0).T, origin='lower',aspect='auto',vmin=0,vmax=self.val,**auxargs)
+		self.datshape = self.dat0.shape
+
+	def on_press(self,event):
+		self.ix_press, self.iy_press=int(event.xdata), int(event.ydata)
+		if event.button ==3:
+			self.press_hold = True
+		else:
+			self.val = np.abs(self.dat0[self.ix_press, self.iy_press])
+			self.press = True
+			self.pl.set_clim(0,self.val)
+			plt.draw()
+
+	def on_release(self,event):
+		self.press  = False
+		self.press_hold = False
+		self.val = self.val_on_motion
+
+	def on_motion(self,event):
+		if self.press_hold:
+			self.val_on_motion = self.val*(1-(self.iy_press-int(event.ydata))/self.datshape[1])
+			self.pl.set_clim(0,self.val_on_motion)
+			plt.draw()
+
+#print self.ix_press-int(event.xdata), self.iy_press-int(event.ydata)
