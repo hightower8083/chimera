@@ -56,6 +56,10 @@ class Solver:
 		kr   = np.zeros((Nkr,Mtot_ext))
 		kr_g = np.zeros((Nx,Nkr,Mtot ))
 		w    = np.zeros((Nx,Nkr,Mtot ))
+		Out    = np.zeros((Nkr,Nkr,Mtot))
+		In     = np.zeros((Nkr,Nkr,Mtot))
+		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
+		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
 
 		for jm in np.arange(Mmin_ext,Mmax_ext+1):
 			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
@@ -63,26 +67,11 @@ class Solver:
 			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
 			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
 
-		Out    = np.zeros((Nkr,Nkr,Mtot))
-		In     = np.zeros((Nkr,Nkr,Mtot))
-		DpS2R  = np.zeros((Nkr,Nkr,Mtot))
-		DmS2R  = np.zeros((Nkr,Nkr,Mtot))
-		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
-		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
-
 		for jm in np.arange(Mmin,Mmax+1):
 			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
 			In [:,:,jm] = np.linalg.pinv(Out[:,:,jm])
-			DpS2R[:,:,jm] = 0.5*kr[:,jm+1][None,:]*jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:])
-			DmS2R[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:])
-
-		for jm in np.arange(Mmin,Mmax+1):
-			DpS2S[:,:,jm] = In[:,:,jm].dot(DpS2R[:,:,jm])
-			DmS2S[:,:,jm] = In[:,:,jm].dot(DmS2R[:,:,jm])
-
-		VGrid = 2*np.pi*dx*dr*RgridFull
-		VGrid = (VGrid+(RgridFull==0))**-1*(RgridFull>0.0)
-		InCurr = In*VGrid[None,1:,None]
+			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]*In[:,:,jm].dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
+			DmS2S[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*In[:,:,jm].dot(jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
 
 		if ('KxShift' in self.Configs) and (Nko>0):
 			Out    = np.concatenate((  Out[:,:,Mmin:],  Out[:,:,:Mmax+1]),axis=-1)
@@ -91,7 +80,11 @@ class Solver:
 			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
 			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),axis=-1)
 			kr_g   = np.concatenate(( kr_g[:,:,Mmin:], kr_g[:,:,:Mmax+1]),axis=-1)
-			InCurr = np.concatenate((InCurr[:,:,Mmin:],InCurr[:,:,:Mmax+1]),axis=-1)
+			kr     = np.concatenate(( kr  [:  ,Mmin:], kr  [:  ,:Mmax+1]),axis=-1)
+
+		VGrid = 2*np.pi*dx*dr*RgridFull
+		VGrid = (VGrid+(RgridFull==0))**-1*(RgridFull>0.0)
+		InCurr = In*VGrid[None,1:,None]
 
 		if 'Rcut' in self.Configs:
 			indRcut = (RgridFull<self.Configs['Rcut']).sum()
@@ -305,6 +298,12 @@ class Solver:
 		else:
 			self.Data['scl_fb'] = chimera.fb_div(self.Data['scl_fb'],self.Data['vec_fb'],*self.Args['FBDiff'])
 
+	def FBGradDiv(self):
+		self.Data['scl_fb'] = chimera.fb_graddiv(self.Data['scl_fb'],*self.Args['FBDiff'])
+
+	def FBDivGrad(self):
+		self.Data['vec_fb'] = chimera.fb_divgrad(self.Data['vec_fb'],*self.Args['FBDiff'])
+
 	def FBGradDens(self):
 		if 'KxShift' in self.Configs:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
@@ -385,8 +384,8 @@ class Solver:
 		  self.Args['kx'],filt)
 		self.B2G_FBRot()
 
-	def FBRot(self,vec_in):
+	def FBRot(self):
 		if 'KxShift' in self.Configs:
-			return chimera.fb_rot_env(np.empty_like(self.Data['vec_fb']),vec_in,*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_rot_env(np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],*self.Args['FBDiff'])
 		else:
-			return chimera.fb_rot(np.empty_like(self.Data['vec_fb']),vec_in,*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_rot(np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],*self.Args['FBDiff'])
