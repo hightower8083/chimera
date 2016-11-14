@@ -141,8 +141,9 @@ complex(kind=8) :: ii=(0.0d0,1.0d0),phase_p,phaseO(0:nkO),projcomp(0:1,0:1,0:nkO
 !f2py intent(in,out) :: Fld_tot
 !f2py intent(hide)   :: np,nx,nr,nkO
 
-!$omp parallel default(shared) private(xp,yp,zp,rp,wp,S0,Fld_p,phaseO,phase_p,projcomp)
-!$omp do schedule(static) private(ix,ir,ip,k,l,iO)
+!$omp parallel default(shared) private(xp,yp,zp,rp,wp,S0,Fld_p, &
+!$omp    phaseO,phase_p,projcomp,ix,ir,ip,k,l,iO)
+!$omp do schedule(static)
 do ip=1,np
   wp = wghts(ip)
   if(wp == 0.0) CYCLE
@@ -170,13 +171,13 @@ do ip=1,np
 
   phaseO(0) = 1.0
   if (nkO>0) then
-    do iO = 1,nkO
+    do iO = 1,nkO-1
       phaseO(iO) = phaseO(iO-1)*phase_p
     enddo
   endif
 
   projcomp = 0.0
-  do iO = 0,nkO
+  do iO = 0,nkO-1
     do k=0,1
       projcomp(:,k,iO) = projcomp(:,k,iO)+ S0(k,2)*S0(:,1)*phaseO(iO)
     enddo
@@ -184,7 +185,7 @@ do ip=1,np
 
   Fld_p = 0.0d0
   do l=1,6
-    Fld_p(l) = Fld_p(l) + SUM(DBLE(projcomp*Fld(ix:ix+1,ir:ir+1,:,l)))
+    Fld_p(l) = Fld_p(l) + SUM(DBLE(projcomp*Fld(ix:ix+1,ir:ir+1,0:nkO-1,l)))
   enddo
 
   Fld_tot(:,ip) = Fld_tot(:,ip)+Fld_p

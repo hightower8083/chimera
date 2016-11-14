@@ -75,6 +75,7 @@ class ChimeraRun():
 				solver.G2B_FBRot()
 			else:
 				solver.poiss_corr()
+				solver.poiss_corr()
 				solver.maxwell_solver()
 				solver.G2B_FBRot()
 
@@ -174,9 +175,6 @@ class ChimeraRun():
 					index2stay = index2stay.argsort()[go_out:]
 					num2stay = index2stay.shape[0]
 				else:
-#					index2stay,numout = chimera.sortpartsout_vec(species.Data['coords'],SimDom)
-#					index2stay = index2stay.argsort()[numout:]
-#					num2stay = index2stay.shape[0]
 					index2stay,num2stay = chimera.sortpartsout(species.Data['coords'],SimDom)
 					index2stay = index2stay[:num2stay]
 
@@ -234,6 +232,5 @@ class ChimeraRun():
 		for species in self.Particles:
 			if  'Xchunked' not in species.Configs or 'NoSorting' in species.Configs['Features']: continue
 			if np.mod(istep, species.Configs['Xchunked'][1]+1)!= 0: continue
-			if 'Still' in species.Configs['Features']: continue
 			if species.Data['coords'].shape[-1] == 0: continue
 			species.chunk_coords('cntr')
