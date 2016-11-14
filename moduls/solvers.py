@@ -148,9 +148,8 @@ class Solver:
 			self.Args['FBoutFull'] = (kx_env,OutFull)
 		else:
 			self.Args['DepFact'] = np.asfortranarray( (2*np.pi)**2/Nx*\
-			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*\
-			  np.cos(0.5*np.pi*np.abs(kx_g)/np.abs(kx_g.max()))[:,:,None]**2)
-			self.Args['DepProj']   = (Rgrid,1./dx,1/dr)
+			  np.cos(0.5*dr*kr_g)**2*np.cos(0.5*dx*kx_g)[:,:,None]**2)
+			self.Args['DepProj']   = (Rgrid,1./dx,1./dr)
 			self.Args['FBCurrIn']  = (kx,InCurr)
 			self.Args['FBIn']      = (kx,In)
 			self.Args['FBout']     = (kx,Out)
@@ -228,8 +227,7 @@ class Solver:
 	def poiss_corr(self):
 		if 'NoPoissonCorrection' in self.Configs['Features']: return
 		self.Data['vec_fb'][:] = self.Data['J_fb']
-		self.FBDiv()
-		self.FBGrad()
+		self.FBGradDiv()
 		if 'SpaceCharge' in self.Configs['Features']:
 			self.Data['J_fb'] = chimera.poiss_corr_with_spchrg(self.Data['J_fb'],self.Data['vec_fb'],\
 			  self.Data['gradRho_fb_prv'], self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1./self.Configs['TimeStep'])
@@ -255,8 +253,7 @@ class Solver:
 		beta0 = px0/np.sqrt(1+px0**2)
 		kx_g = beta0*self.Args['kx_g'][:,:,None,None]
 		self.Data['vec_fb'][:] = self.Data['J_fb']
-		self.FBDiv()
-		self.FBGrad()
+		self.FBGradDiv()
 		self.Data['J_fb'] = chimera.poiss_corr_with_spchrg(self.Data['J_fb'],self.Data['vec_fb'],\
 		  np.zeros_like(self.Data['gradRho_fb_nxt']),-1.j*kx_g*self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1.)
 
@@ -280,7 +277,6 @@ class Solver:
 	def fb_fld_out(self):
 		self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'][:,:,:,:3],self.Data['B_fb'],\
 		  self.Args['leftX'],*self.Args['FBout'])
-
 		if 'KxShift' in self.Configs:
 			self.Data['EB'] = chimera.eb_corr_axis_env(self.Data['EB'])
 		else:
@@ -299,16 +295,21 @@ class Solver:
 			self.Data['scl_fb'] = chimera.fb_div(self.Data['scl_fb'],self.Data['vec_fb'],*self.Args['FBDiff'])
 
 	def FBGradDiv(self):
-		self.Data['scl_fb'] = chimera.fb_graddiv(self.Data['scl_fb'],*self.Args['FBDiff'])
+		if 'KxShift' in self.Configs:
+			self.Data['vec_fb'] = chimera.fb_graddiv_env(self.Data['vec_fb'],*self.Args['FBDiff'])
+		else:
+			self.Data['vec_fb'] = chimera.fb_graddiv(self.Data['vec_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'][:,:,-1,:] = 0.0 #############
 
 	def FBDivGrad(self):
-		self.Data['vec_fb'] = chimera.fb_divgrad(self.Data['vec_fb'],*self.Args['FBDiff'])
+		self.Data['scl_fb'] = chimera.fb_divgrad(self.Data['scl_fb'],*self.Args['FBDiff'])
 
 	def FBGradDens(self):
 		if 'KxShift' in self.Configs:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
 		else:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
+			self.Data['gradRho_fb_nxt'][:,:,-1,:] = 0.0 #############
 
 	def G2B_FBRot(self):
 		if 'KxShift' in self.Configs:
@@ -322,6 +323,7 @@ class Solver:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 		else:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+			self.Data['EG_fb'][:,:,-1,3:] = 0.0 ###########
 
 	def add_gauss_beam(self,S):
 		k0 = 2*np.pi*S['k0']
@@ -347,8 +349,7 @@ class Solver:
 			DT = -1.j*w*np.sign(kx_g[:,:,None,None] + (kx_g[:,:,None,None]==0))
 
 		EE = self.Data['vec_fb'].copy()
-		self.FBDiv()
-		self.FBGrad()
+		self.FBGradDiv()
 		self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'], self.Args['PoissFact'])
 		EE += self.Data['vec_fb']
 		GG  = DT*EE
@@ -361,15 +362,14 @@ class Solver:
 
 		self.Data['EG_fb'][:,:,:,:3] += EE
 		self.Data['EG_fb'][:,:,:,3:] += GG
+#		self.Data['EG_fb'][:,:,-1,:]  = 0.0
 		self.Data['vec_fb'][:] = 0.0
 		self.Data['scl_fb'][:] = 0.0
 
 	def absorb_field(self,Lf,config='left'):
 		Nfilt = int(Lf/self.Args['dx'])
 		flt_gr = np.arange(Nfilt)
-		filt_shape = (flt_gr>=0.25*Nfilt)*0.25*(1-np.cos(np.pi*(flt_gr-0.25*Nfilt)/(0.75*Nfilt)))**2
-#		filt_shape = (flt_gr>=0.625*Nfilt) + (flt_gr>=0.375*Nfilt)*(flt_gr<0.625*Nfilt)*np.sin(0.5*np.pi*(flt_gr-0.375*Nfilt)/(0.25*Nfilt))**2
-#		filt_shape = (0.5-0.5*np.cos(np.r_[0:np.pi:Nfilt*1j]))**2
+		filt_shape = (flt_gr>=0.75*Nfilt)*0.25*(1-np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.75*Nfilt)))**2
 		filt = np.ones(self.Args['Nx'])
 		if config=='left':
 			filt[:Nfilt] = filt_shape
