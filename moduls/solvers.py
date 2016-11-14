@@ -299,7 +299,6 @@ class Solver:
 			self.Data['vec_fb'] = chimera.fb_graddiv_env(self.Data['vec_fb'],*self.Args['FBDiff'])
 		else:
 			self.Data['vec_fb'] = chimera.fb_graddiv(self.Data['vec_fb'],*self.Args['FBDiff'])
-			self.Data['vec_fb'][:,:,-1,:] = 0.0 #############
 
 	def FBDivGrad(self):
 		self.Data['scl_fb'] = chimera.fb_divgrad(self.Data['scl_fb'],*self.Args['FBDiff'])
@@ -309,7 +308,6 @@ class Solver:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
 		else:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
-			self.Data['gradRho_fb_nxt'][:,:,-1,:] = 0.0 #############
 
 	def G2B_FBRot(self):
 		if 'KxShift' in self.Configs:
@@ -323,7 +321,6 @@ class Solver:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 		else:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
-			self.Data['EG_fb'][:,:,-1,3:] = 0.0 ###########
 
 	def add_gauss_beam(self,S):
 		k0 = 2*np.pi*S['k0']
@@ -362,7 +359,6 @@ class Solver:
 
 		self.Data['EG_fb'][:,:,:,:3] += EE
 		self.Data['EG_fb'][:,:,:,3:] += GG
-#		self.Data['EG_fb'][:,:,-1,:]  = 0.0
 		self.Data['vec_fb'][:] = 0.0
 		self.Data['scl_fb'][:] = 0.0
 

@@ -171,13 +171,13 @@ do ip=1,np
 
   phaseO(0) = 1.0
   if (nkO>0) then
-    do iO = 1,nkO-1
+    do iO = 1,nkO
       phaseO(iO) = phaseO(iO-1)*phase_p
     enddo
   endif
 
   projcomp = 0.0
-  do iO = 0,nkO-1
+  do iO = 0,nkO
     do k=0,1
       projcomp(:,k,iO) = projcomp(:,k,iO)+ S0(k,2)*S0(:,1)*phaseO(iO)
     enddo
@@ -185,7 +185,7 @@ do ip=1,np
 
   Fld_p = 0.0d0
   do l=1,6
-    Fld_p(l) = Fld_p(l) + SUM(DBLE(projcomp*Fld(ix:ix+1,ir:ir+1,0:nkO-1,l)))
+    Fld_p(l) = Fld_p(l) + SUM(DBLE(projcomp*Fld(ix:ix+1,ir:ir+1,0:nkO,l)))
   enddo
 
   Fld_tot(:,ip) = Fld_tot(:,ip)+Fld_p
