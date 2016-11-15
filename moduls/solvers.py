@@ -23,8 +23,13 @@ class Solver:
 		if 'KxShift' in self.Configs:
 			kx0 = 2*np.pi*self.Configs['KxShift']
 			print 'Spectral domain is shifted to', self.Configs['KxShift']
+			Mmin    ,Mmax    ,Mtot     = -Nko  ,Nko,2*Nko+1
+			Mmin_ext,Mmax_ext,Mtot_ext = -Nko-1,Nko+1,2*Nko+3
 		else:
 			kx0 = 0.0
+			Nko += 1 ### IMPORTANT: COMPLIMENTARY MODE IS ADDED
+			Mmin    ,Mmax    ,Mtot     = 0,Nko,Nko+1
+			Mmin_ext,Mmax_ext,Mtot_ext = 0,Nko+1,Nko+2
 
 		if 'Xchunked' in self.Configs:
 			nthrds = self.Configs['Xchunked'][0]
@@ -43,13 +48,6 @@ class Solver:
 		Nr = Nkr+1
 		RgridFull = dr*(np.arange(Nr)-0.5)
 		lengthR = RgridFull[-1] + dr
-
-		if 'KxShift' in self.Configs:
-			Mmin    ,Mmax    ,Mtot     = -Nko  ,Nko,2*Nko+1
-			Mmin_ext,Mmax_ext,Mtot_ext = -Nko-1,Nko+1,2*Nko+3
-		else:
-			Mmin    ,Mmax    ,Mtot     = 0,Nko,Nko+1
-			Mmin_ext,Mmax_ext,Mtot_ext = 0,Nko+1,Nko+2
 
 		print 'Grid resolutions are ', (Nx,Nkr,Mtot)
 

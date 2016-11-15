@@ -75,7 +75,7 @@ class ChimeraRun():
 				solver.G2B_FBRot()
 			else:
 				solver.poiss_corr()
-				solver.poiss_corr()
+				solver.poiss_corr() # IMPORTANT: ADDITINAL POISSON CLEANING
 				solver.maxwell_solver()
 				solver.G2B_FBRot()
 
