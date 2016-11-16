@@ -7,7 +7,7 @@ real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np),leftX,Rgrid(0:
                               dx_inv,dr_inv
 complex(kind=8),intent(inout):: curr(0:nx,0:nr,0:nkO,3)
 integer         :: ix,ir,ip,k,l,iO,nxleft,chunk_size,ichnk
-real(kind=8)    :: xp,yp,zp,rp,gp,wp,S0(0:1,2),veloc(3),curr_p(0:1,0:1),inv9
+real(kind=8)    :: xp,yp,zp,rp,gp,wp,S0(0:1,2),veloc(3),curr_p(0:1,0:1), inv9=1.0d0/9.0d0
 complex(kind=8) :: ii=(0.0d0,1.0d0),phaseO(0:nkO),phase_m
 complex(kind=8), allocatable :: loc_left(:,:,:,:),loc_right(:,:,:,:)
 
@@ -18,15 +18,13 @@ complex(kind=8), allocatable :: loc_left(:,:,:,:),loc_right(:,:,:,:)
 chunk_size=(nx+1)/nchnk
 call omp_set_num_threads(nchnk)
 
-inv9 = 1.0d0/9.0d0
-
 !$omp parallel default(shared) &
 !$omp private(loc_left,loc_right,xp,yp,zp,rp,wp,gp,S0,&
 !$omp   veloc,curr_p,phaseO,phase_m,ix,ir,ip,k,l,iO,ichnk,nxleft)
 
 ichnk = omp_get_thread_num()
-allocate(loc_left(-guards:0,0:nr,0:nkO-1,3))
-allocate(loc_right(chunk_size:chunk_size+guards,0:nr,0:nkO-1,3))
+allocate(loc_left(-guards:0,0:nr,0:nkO,3))
+allocate(loc_right(chunk_size:chunk_size+guards,0:nr,0:nkO,3))
 
 nxleft = ichnk*chunk_size
 loc_left = 0.  
@@ -61,7 +59,7 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
 
   phaseO(0) = 1.0d0
   if (nkO>0) then
-    do iO = 1,nkO-1
+    do iO = 1,nkO
       phaseO(iO) = phaseO(iO-1)*phase_m
     enddo
   endif
@@ -71,7 +69,7 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
   enddo
 
   do l=1,3
-    do iO = 0,nkO-1
+    do iO = 0,nkO
       do k = 0,1
         if (ix+k<=0) then
           loc_left(ix+k,ir:ir+1,iO,l) = loc_left(ix+k,ir:ir+1,iO,l)+phaseO(iO)*veloc(l)*curr_p(k,:)
@@ -86,33 +84,27 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
 enddo
 
 if (nxleft+chunk_size+guards<=nx) then
-  curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,0:nkO-1,:) = &
-   curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,0:nkO-1,:) + loc_right
+  curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,:,:) = &
+   curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,:,:) + loc_right
 endif
 !$omp barrier
 if (nxleft-guards>=0) then
-  curr(nxleft-guards:nxleft,:,0:nkO-1,:) = &
-   curr(nxleft-guards:nxleft,:,0:nkO-1,:) + loc_left
+  curr(nxleft-guards:nxleft,:,:,:) = &
+   curr(nxleft-guards:nxleft,:,:,:) + loc_left
 endif
 deallocate(loc_left)
 deallocate(loc_right)
 !$omp end parallel
 
-!$omp parallel do schedule(static) default(shared) private(ix,iO,l)
+!$omp parallel do default(shared) private(ix,iO,l) schedule(static)
 do l=1,3
-  do ix=0,nx
-    curr(ix,1,0,l) = curr(ix,1,0,l) + curr(ix,0,0,l)
-  enddo
+  curr(:,1,0,l) = curr(:,1,0,l) + curr(:,0,0,l)
   if (nkO>0) then
-    do iO = 1,nkO-1
-      do ix=0,nx
-        curr(ix,1,iO,l) = curr(ix,2,iO,l)*inv9
-      enddo
-    enddo
+    curr(:,1,1:nkO,l) = curr(:,2,1:nkO,l)*inv9  !curr(:,1,0,l) - curr(:,0,0,l)
   endif
+  curr(:,0,:,l) = 0.0
 enddo
 !$omp end parallel do
-curr(:,0,:,:) = 0.0
 
 end subroutine
 
@@ -125,7 +117,7 @@ real (kind=8), intent(in)  :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),&
                               dx_inv,dr_inv
 complex(kind=8),intent(inout):: dens(0:nx,0:nr,0:nkO)
 integer         :: ix,ir,ip,k,iO,nxleft,chunk_size,ichnk
-real(kind=8)    :: xp,yp,zp,rp,wp,S0(0:1,2), dens_p(0:1,0:1)
+real(kind=8)    :: xp,yp,zp,rp,wp,S0(0:1,2), dens_p(0:1,0:1),inv9=1.0d0/9.0d0
 complex(kind=8) :: ii=(0.0d0,1.0d0),phaseO(0:nkO),phase_m
 complex(kind=8), allocatable :: loc_left(:,:,:), loc_right(:,:,:)
 !f2py intent(in) :: coord,wghts,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv
@@ -138,8 +130,8 @@ call omp_set_num_threads(nchnk)
 !$omp parallel default(shared) &
 !$omp private(loc_left,loc_right,xp,yp,zp,rp,wp,S0,dens_p,phaseO,phase_m,&
 !$omp  ix,ir,ip,k,iO,ichnk,nxleft)
-allocate(loc_left(-guards:0,0:nr,0:nkO-1))
-allocate(loc_right(chunk_size:chunk_size+guards,0:nr,0:nkO-1))
+allocate(loc_left(-guards:0,0:nr,0:nkO))
+allocate(loc_right(chunk_size:chunk_size+guards,0:nr,0:nkO))
 ichnk = omp_get_thread_num()
 
 nxleft = ichnk*chunk_size
@@ -172,7 +164,7 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
 
   phaseO(0) = 1.0d0
   if (nkO>0) then
-    do iO = 1,nkO-1
+    do iO = 1,nkO
       phaseO(iO) = phaseO(iO-1)*phase_m
     enddo
   endif
@@ -181,7 +173,7 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
     dens_p(:,k) = S0(:,1)*S0(k,2)*wp
   enddo
 
-  do iO = 0,nkO-1
+  do iO = 0,nkO
     do k = 0,1
       if (ix+k<=0) then
         loc_left(ix+k,ir:ir+1,iO) = loc_left(ix+k,ir:ir+1,iO)+phaseO(iO)*dens_p(k,:)
@@ -195,19 +187,23 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
 enddo
 
 if (nxleft+chunk_size+guards<=nx) then
-  dens(nxleft+chunk_size:nxleft+chunk_size+guards,:,0:nkO-1) = &
-   dens(nxleft+chunk_size:nxleft+chunk_size+guards,:,0:nkO-1) + loc_right
+  dens(nxleft+chunk_size:nxleft+chunk_size+guards,:,:) = &
+   dens(nxleft+chunk_size:nxleft+chunk_size+guards,:,:) + loc_right
 endif
 !$omp barrier
 if (nxleft-guards>=0) then
-  dens(nxleft-guards:nxleft,:,0:nkO-1) = &
-   dens(nxleft-guards:nxleft,:,0:nkO-1) + loc_left 
+  dens(nxleft-guards:nxleft,:,:) = &
+   dens(nxleft-guards:nxleft,:,:) + loc_left 
 endif
 
 deallocate(loc_left)
 deallocate(loc_right)
 !$omp end parallel
 
-dens(:,1,0:nkO-1) = dens(:,1,0:nkO-1) - dens(:,0,0:nkO-1)
-dens(:,0,0:nkO-1) = 0.0
+dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
+!if (nkO>0) then
+!  dens(:,1,1:nkO) = 0.0d0 !dens(:,2,1:nkO)*inv9
+!endif
+dens(:,0,:) = 0.0
+
 end subroutine

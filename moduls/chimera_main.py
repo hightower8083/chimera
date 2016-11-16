@@ -74,8 +74,7 @@ class ChimeraRun():
 					solver.field_drift(PXmean)
 				solver.G2B_FBRot()
 			else:
-				solver.poiss_corr()
-				solver.poiss_corr() # IMPORTANT: ADDITINAL POISSON CLEANING
+				solver.poiss_corr(); solver.poiss_corr() # IMPORTANT: ADDITINAL POISSON CLEANING
 				solver.maxwell_solver()
 				solver.G2B_FBRot()
 
@@ -160,7 +159,7 @@ class ChimeraRun():
 		if 'AbsorbLayer' in wind and wind['AbsorbLayer']>0:
 			for solver in self.Solvers:
 				if 'StaticKick' in solver.Configs['Features']: continue
-				solver.absorb_field(wind['AbsorbLayer'],'left')
+				solver.absorb_field(wind['AbsorbLayer'])
 
 	def damp_plasma(self,wind):
 		if 'AbsorbLayer' in wind:
