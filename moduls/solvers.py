@@ -23,13 +23,8 @@ class Solver:
 		if 'KxShift' in self.Configs:
 			kx0 = 2*np.pi*self.Configs['KxShift']
 			print 'Spectral domain is shifted to', self.Configs['KxShift']
-			Mmin    ,Mmax    ,Mtot     = -Nko  ,Nko,2*Nko+1
-			Mmin_ext,Mmax_ext,Mtot_ext = -Nko-1,Nko+1,2*Nko+3
 		else:
 			kx0 = 0.0
-			Nko += 1 ### IMPORTANT: COMPLIMENTARY MODE IS ADDED
-			Mmin    ,Mmax    ,Mtot     = 0,Nko,Nko+1
-			Mmin_ext,Mmax_ext,Mtot_ext = 0,Nko+1,Nko+2
 
 		if 'Xchunked' in self.Configs:
 			nthrds = self.Configs['Xchunked'][0]
@@ -49,6 +44,41 @@ class Solver:
 		RgridFull = dr*(np.arange(Nr)-0.5)
 		lengthR = RgridFull[-1] + dr
 
+####################
+		if 'KxShift' in self.Configs:
+			Mmin    , Mmax    , Mtot     = -Nko-1, Nko+1 , 2*Nko+3
+			Mmin_ext, Mmax_ext, Mtot_ext = Mmin-1, Mmax+1, Mtot+2
+		else:
+			Mmin    , Mmax    , Mtot     = 0, Nko+1 , Nko+2
+			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
+
+		kr   = np.zeros((Nkr,Mtot_ext))
+		kr_g = np.zeros((Nx,Nkr,Mtot ))
+		w    = np.zeros((Nx,Nkr,Mtot ))
+		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
+		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
+		for jm in np.arange(Mmin_ext,Mmax_ext+1):
+			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
+		for jm in np.arange(Mmin,Mmax+1):
+			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
+			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
+			In = np.linalg.pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
+			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
+			DmS2S[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
+		if ('KxShift' in self.Configs) and (Nko>0):
+			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
+			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
+			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),axis=-1)
+		w_ext = w.copy()
+###################
+
+		if 'KxShift' in self.Configs:
+			Mmin    , Mmax    , Mtot     = -Nko  , Nko   , 2*Nko+1
+			Mmin_ext, Mmax_ext, Mtot_ext = Mmin-1, Mmax+1, Mtot+2
+		else:
+			Mmin    , Mmax    , Mtot     = 0, Nko   , Nko+1
+			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
+
 		print 'Grid resolutions are ', (Nx,Nkr,Mtot)
 
 		kr   = np.zeros((Nkr,Mtot_ext))
@@ -56,8 +86,6 @@ class Solver:
 		w    = np.zeros((Nx,Nkr,Mtot ))
 		Out    = np.zeros((Nkr,Nkr,Mtot))
 		In     = np.zeros((Nkr,Nkr,Mtot))
-		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
-		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
 
 		for jm in np.arange(Mmin_ext,Mmax_ext+1):
 			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
@@ -68,14 +96,10 @@ class Solver:
 		for jm in np.arange(Mmin,Mmax+1):
 			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
 			In [:,:,jm] = np.linalg.pinv(Out[:,:,jm])
-			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]*In[:,:,jm].dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
-			DmS2S[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*In[:,:,jm].dot(jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
 
 		if ('KxShift' in self.Configs) and (Nko>0):
 			Out    = np.concatenate((  Out[:,:,Mmin:],  Out[:,:,:Mmax+1]),axis=-1)
 			In     = np.concatenate((   In[:,:,Mmin:],   In[:,:,:Mmax+1]),axis=-1)
-			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
-			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
 			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),axis=-1)
 			kr_g   = np.concatenate(( kr_g[:,:,Mmin:], kr_g[:,:,:Mmax+1]),axis=-1)
 			kr     = np.concatenate(( kr  [:  ,Mmin:], kr  [:  ,:Mmax+1]),axis=-1)
@@ -112,6 +136,7 @@ class Solver:
 
 		self.Args['FBDiff'] = (DpS2S,DmS2S,kx)
 		self.Args['PoissFact'] = np.asfortranarray(w**-2)
+		self.Args['PoissFact_ext'] = np.asfortranarray(w_ext**-2)
 
 		self.Args['EnergyFact'] = 0.5*0.511e6*1.6022e-19/2.818e-13*lengthR**2/dkx*\
 		  jn(np.abs(np.arange(Mmin,Mmax+1)[None,None,:])+1,kr_g*lengthR)**2
@@ -163,7 +188,7 @@ class Solver:
 		self.Data['scl_fb'] = np.zeros((Nx,Nkr,Mtot),dtype='complex',order='F')
 
 		self.Data['J_fb']  = np.zeros_like(self.Data['vec_fb'])
-		self.Data['B_fb']  = np.zeros_like(self.Data['vec_fb'])
+		self.Data['B_fb']  = np.zeros((Nx,Nkr,Mtot_ext,3),dtype='complex',order='F')
 
 		if 'SpaceCharge' in self.Configs['Features'] or 'StaticKick' in self.Configs['Features']:
 			print 'Space charge is added'
@@ -296,8 +321,7 @@ class Solver:
 		if 'KxShift' in self.Configs:
 			self.Data['vec_fb'] = chimera.fb_graddiv_env(self.Data['vec_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['vec_fb'] = chimera.fb_graddiv(self.Data['vec_fb'],*self.Args['FBDiff'])
-			self.Data['vec_fb'][:,:,-1,:] = 0.0 #############
+			self.Data['vec_fb'] = chimera.fb_graddiv_ext(self.Data['vec_fb'],*self.Args['FBDiff'])
 
 	def FBDivGrad(self):
 		self.Data['scl_fb'] = chimera.fb_divgrad(self.Data['scl_fb'],*self.Args['FBDiff'])
@@ -306,22 +330,20 @@ class Solver:
 		if 'KxShift' in self.Configs:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['gradRho_fb_nxt'] = chimera.fb_grad(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
-			self.Data['gradRho_fb_nxt'][:,:,-1,:] = 0.0 #############
+			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_ext(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
 
 	def G2B_FBRot(self):
 		if 'KxShift' in self.Configs:
 			self.Data['B_fb'] = chimera.fb_rot_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		else:
-			self.Data['B_fb'] = chimera.fb_rot(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
-		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact'])
+			self.Data['B_fb'] = chimera.fb_rot_plus(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
+		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact_ext'])
 
 	def B2G_FBRot(self):
 		if 'KxShift' in self.Configs:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
-			self.Data['EG_fb'][:,:,-1,3:] = 0.0 ###########
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 
 	def add_gauss_beam(self,S):
 		k0 = 2*np.pi*S['k0']
@@ -337,10 +359,10 @@ class Solver:
 			  np.exp(-0.25*(kx_g-k0)**2*S['Lx']**2 -0.25*kr_g[:,:,self.Args['Nko']]**2*S['LR']**2 )
 			DT = -1.j*w
 		else:
-			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# sin laser phase
-			self.Data['scl_spc'][:,:,0] = a0*np.sin(k0*(Xgrid[:,None]-S['x0']))*\
-			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2-Rgrid[None,:]**2/S['LR']**2)*\
-			  (abs(Xgrid[:,None]-S['x0'])<3.5*S['Lx'])*(abs(Rgrid[None,:])<3.5*S['LR'])
+			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# cos laser phase
+			self.Data['scl_spc'][:,:,0] = a0*np.cos(k0*(Xgrid[:,None]-S['x0']))*\
+			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2-Rgrid[None,:]**2/S['LR']**2) *\
+			  (abs(Xgrid[:,None]-S['x0'])< 3.0*S['Lx'])*(abs(Rgrid[None,:])< 3.0*S['LR'])
 			self.Data['scl_spc'][:,0,0] = 0.0
 			self.fb_scl_spc_in()
 			self.Data['vec_fb'][:,:,:,2] = self.Data['scl_fb']/np.float(self.Args['Nx'])
@@ -360,7 +382,6 @@ class Solver:
 
 		self.Data['EG_fb'][:,:,:,:3] += EE
 		self.Data['EG_fb'][:,:,:,3:] += GG
-#		self.Data['EG_fb'][:,:,-1,:]  = 0.0
 		self.Data['vec_fb'][:] = 0.0
 		self.Data['scl_fb'][:] = 0.0
 
