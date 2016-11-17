@@ -65,7 +65,7 @@ class Solver:
 			In = np.linalg.pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
 			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
 			DmS2S[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
-		if ('KxShift' in self.Configs):
+		if 'KxShift' in self.Configs:
 			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
 			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
 			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),axis=-1)
