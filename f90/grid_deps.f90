@@ -58,11 +58,8 @@ do ip=1,np
   enddo
 enddo
 
-if (Rgrid(0)<0) then
-  curr(:,1,0,:) = curr(:,1,0,:) + curr(:,0,0,:)
-  if (nkO>0) curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
-  curr(:,0,:,:) = 0.0
-endif
+curr(:,1,0,:) = curr(:,1,0,:) - curr(:,0,0,:)
+curr(:,0,:,:) = 0.0
 end subroutine
 
 subroutine dep_dens(coord,wghts,dens,leftX,Rgrid,dx_inv,dr_inv,&
@@ -120,10 +117,9 @@ do ip=1,np
   enddo
 enddo
 
-if (Rgrid(0)<0) then
-  dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
-  dens(:,0,:) = 0.0
-endif
+dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
+dens(:,0,:) = 0.0
+
 end subroutine
 
 subroutine proj_fld(coord,wghts,Fld,Fld_tot,leftX,Rgrid,dx_inv,&

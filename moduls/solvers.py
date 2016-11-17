@@ -65,7 +65,7 @@ class Solver:
 			In = np.linalg.pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
 			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
 			DmS2S[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
-		if ('KxShift' in self.Configs) and (Nko>0):
+		if ('KxShift' in self.Configs):
 			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
 			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
 			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),axis=-1)
@@ -321,27 +321,24 @@ class Solver:
 		if 'KxShift' in self.Configs:
 			self.Data['vec_fb'] = chimera.fb_graddiv_env(self.Data['vec_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['vec_fb'] = chimera.fb_graddiv_ext(self.Data['vec_fb'],*self.Args['FBDiff'])
-
-	def FBDivGrad(self):
-		self.Data['scl_fb'] = chimera.fb_divgrad(self.Data['scl_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_graddiv(self.Data['vec_fb'],*self.Args['FBDiff'])
 
 	def FBGradDens(self):
 		if 'KxShift' in self.Configs:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_ext(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
+			self.Data['gradRho_fb_nxt'] = chimera.fb_grad(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
 
 	def G2B_FBRot(self):
 		if 'KxShift' in self.Configs:
-			self.Data['B_fb'] = chimera.fb_rot_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
+			self.Data['B_fb'] = chimera.fb_rot_plus_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		else:
 			self.Data['B_fb'] = chimera.fb_rot_plus(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact_ext'])
 
 	def B2G_FBRot(self):
 		if 'KxShift' in self.Configs:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 		else:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 
@@ -360,9 +357,9 @@ class Solver:
 			DT = -1.j*w
 		else:
 			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# cos laser phase
-			self.Data['scl_spc'][:,:,0] = a0*np.cos(k0*(Xgrid[:,None]-S['x0']))*\
+			self.Data['scl_spc'][:,:,0] = a0*np.sin(k0*(Xgrid[:,None]-S['x0']))*\
 			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2-Rgrid[None,:]**2/S['LR']**2) *\
-			  (abs(Xgrid[:,None]-S['x0'])< 3.0*S['Lx'])*(abs(Rgrid[None,:])< 3.0*S['LR'])
+			  (abs(Xgrid[:,None]-S['x0'])< 4.0*S['Lx'])*(abs(Rgrid[None,:])< 4.0*S['LR'])
 			self.Data['scl_spc'][:,0,0] = 0.0
 			self.fb_scl_spc_in()
 			self.Data['vec_fb'][:,:,:,2] = self.Data['scl_fb']/np.float(self.Args['Nx'])
