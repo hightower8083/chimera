@@ -145,22 +145,21 @@ class Solver:
 			cutafter = 0.8
 			fu_bandpass = lambda x : (x<cutafter)+(x>=cutafter)*np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
 			filt_bandpass = fu_bandpass(np.abs(kx_env)/np.abs(kx_env.max()))[:,None,None]
-
 			filt_antialias = np.ones_like(filt_bandpass)
-			fu_antialias = lambda x,x0 :1-np.exp(-(x-x0)**2/((x0+1.)/Nx)**2)
-			cell_echos = np.abs(kx_env).max()/kx0*np.arange(20)-1.
-			full_band = np.array([kx.min()/kx0, kx.max()/kx0])-1.
 
-			for cellecho in cell_echos:
-				if cellecho>full_band[0] and cellecho<full_band[1]:
-					print 'possible grid echo is detected at', cellecho/abs(full_band).max()
-					if 'NoAntiEcho' in self.Configs['Features']:
-						continue
-					elif abs(cellecho)/abs(full_band).max()>0.4:
-						print 'will correct', cellecho/abs(full_band).max()
-						filt_antialias *= fu_antialias( kx/kx0-1, cellecho  )[:,None,None]
-					else:
-						print 'echo is close to resonance; no correction will be performed'
+			if 'NoAntiEcho' not in self.Configs['Features']:
+				fu_antialias = lambda x,x0 :1-np.exp(-(x-x0)**2/((x0+1.)/Nx)**2)
+				cell_echos = np.abs(kx_env).max()/kx0*np.arange(20)-1.
+				full_band = np.array([kx.min()/kx0, kx.max()/kx0])-1.
+
+				for cellecho in cell_echos:
+					if cellecho>full_band[0] and cellecho<full_band[1]:
+						print 'possible grid echo is detected at', cellecho/abs(full_band).max()
+						if abs(cellecho)/abs(full_band).max()>0.4:
+							print 'will correct', cellecho/abs(full_band).max()
+							filt_antialias *= fu_antialias( kx/kx0-1, cellecho  )[:,None,None]
+						else:
+							print 'echo is close to resonance; no correction will be performed'
 
 			self.Args['DepFact'] = np.asfortranarray((2*np.pi)**2/Nx*\
 			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass*filt_antialias)
@@ -298,11 +297,13 @@ class Solver:
 		self.Data['scl_fb'] = chimera.fb_scl_in(self.Data['scl_fb'],self.Data['scl_spc'],self.Args['leftX'],*self.Args['FBIn'])
 
 	def fb_fld_out(self):
-		self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'][:,:,:,:3],self.Data['B_fb'],\
-		  self.Args['leftX'],*self.Args['FBout'])
 		if 'KxShift' in self.Configs:
+			self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'][:,:,:,:3],self.Data['B_fb'][:,:,1:-1,:],\
+			  self.Args['leftX'],*self.Args['FBout'])
 			self.Data['EB'] = chimera.eb_corr_axis_env(self.Data['EB'])
 		else:
+			self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'][:,:,:,:3],self.Data['B_fb'][:,:,:-1,:],\
+			  self.Args['leftX'],*self.Args['FBout'])
 			self.Data['EB'] = chimera.eb_corr_axis(self.Data['EB'])
 
 	def FBGrad(self):

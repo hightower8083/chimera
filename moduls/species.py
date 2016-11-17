@@ -187,7 +187,7 @@ class Specie:
 		ip=0
 		for ix in np.arange(Xgrid.shape[0]-1):
 			for ir in np.arange(Rgrid.shape[0]-1):
-				rand_cell = np.random.rand(3,self.Num_p)
+				rand_cell = 2*(np.random.rand(3,self.Num_p)-0.5)
 				xx_cell = Xgrid[ix] + self.Args['dx']*(np.arange(self.Num_p)+0.5*rand_cell[0])/self.Num_p
 				rr_cell = Rgrid[ir] + self.Args['dr']*(np.arange(self.Num_p)+0.5*rand_cell[1])/self.Num_p
 				oo_cell = 2*np.pi*(np.arange(self.Num_p)+0.5*rand_cell[2])/self.Num_p
