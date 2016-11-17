@@ -119,13 +119,13 @@ enddo
 call fftw_destroy_plan(plan_out)
 end subroutine
 
-subroutine fb_eb_out(eb_spc,e_fb,b_fb,leftX,kx,Out,nkx,nr,nkO,nkr,nkO_ext)
+subroutine fb_eb_out(eb_spc,e_fb,b_fb,leftX,kx,Out,nkx,nr,nkO,nkr)
 use, intrinsic :: iso_c_binding
 implicit none 
 include "fftw3.f03"
-integer, intent(in)        :: nkx,nr,nkO,nkr,nkO_ext
+integer, intent(in)        :: nkx,nr,nkO,nkr
 real (kind=8), intent(in)  :: leftX,kx(nkx),Out(nkr,nr,nkO)
-complex(kind=8),intent(in) :: e_fb(nkx,nkr,nkO,3),b_fb(nkx,nkr,nkO_ext,3)
+complex(kind=8),intent(in) :: e_fb(nkx,nkr,nkO,3),b_fb(nkx,nkr,nkO,3)
 complex(kind=8),intent(inout):: eb_spc(nkx,0:nr,nkO,6) 
 integer :: l,ir,ik,iO
 complex(kind=8) :: ii=(0.0d0,1.0d0),shiftX(nkx)
@@ -134,7 +134,7 @@ type(C_PTR) :: plan_out
 
 !f2py intent(in) :: e_fb,b_fb,leftX,kx,Out
 !f2py intent(in,out) :: eb_spc
-!f2py intent(hide) :: nkx,nr,nkO,nkr,nkO_ext
+!f2py intent(hide) :: nkx,nr,nkO,nkr,nkO
 
 eb_spc = 0.0d0
 plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
