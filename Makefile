@@ -13,11 +13,11 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
 #FFTI = /home/sources/magins/andriyash/CODES/fftw-gcc/include
 #FFTL = /home/sources/magins/andriyash/CODES/fftw-gcc/lib
 
-FFTI = /Users/igor/CODES/fft/include
-FFTL = /Users/igor/CODES/fft/lib
+#FFTI = /Users/igor/CODES/fft/include
+#FFTL = /Users/igor/CODES/fft/lib
 
-#FFTI = /usr/local/include
-#FFTL = /usr/local/lib
+FFTI = /usr/local/include
+FFTL = /usr/local/lib
 
 #FLAGS_G = -c -DF2PY_REPORT_ON_ARRAY_COPY=1 --opt='-Og -Wall -Wline-truncation  -Wcharacter-truncation \
 # -Wextra -Wsurprising  -Waliasing -Wimplicit-interface  -Wunused-parameter  -fwhole-file -fcheck=all  \

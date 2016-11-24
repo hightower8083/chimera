@@ -19,25 +19,12 @@ class ChimeraRun():
 				if 'Features'   not in wind: wind['Features']   = ()
 				if 'TimeActive' not in wind: wind['TimeActive'] = (0.0,np.inf)
 				if 'Velocity'   not in wind: wind['Velocity']   = 1.0
-				if 'BoundsFreq' not in wind: wind['BoundsFreq'] = wind['Steps']
 				if 'Staged' in wind['Features']:
 					wind['shiftX'] = 0.5*wind['Velocity']*wind['TimeStep']*wind['Steps']
 				else:
 					wind['shiftX'] = wind['Velocity']*wind['TimeStep']*wind['Steps']
 		else:
 			self.MovingFrames = ()
-
-	def make_step(self,istep):
-		self.frame_act(istep)
-		for species in self.Particles: species.push_coords()
-		self.chunk_particles(istep)
-		self.project_current()
-		self.project_density()
-		self.update_fields()
-		self.frame_act(istep,'stage2')
-		for species in self.Particles: species.make_field(istep)
-		self.project_fields()
-		for species in self.Particles: species.push_velocs()
 
 	def make_halfstep(self):
 		for species in self.Particles:
@@ -52,6 +39,18 @@ class ChimeraRun():
 		self.project_fields()
 		for species in self.Particles: species.push_velocs(dt=0.5*species.Configs['TimeStep'])
 
+	def make_step(self,istep):
+		self.frame_act(istep)
+		for species in self.Particles: species.push_coords()
+		self.chunk_particles(istep)
+		self.project_current()
+		self.project_density()
+		self.update_fields()
+		self.frame_act(istep,'stage2')
+		for species in self.Particles: species.make_field(istep)
+		self.project_fields()
+		for species in self.Particles: species.push_velocs()
+
 	def project_current(self):
 		for solver in self.Solvers: self.dep_curr(solver)
 
@@ -59,7 +58,7 @@ class ChimeraRun():
 		for solver in self.Solvers:
 			if 'SpaceCharge' not in solver.Configs['Features'] and \
 			  'StaticKick' not in solver.Configs['Features']: continue
-			if 'StaticKick' not in solver.Configs['Features']:
+			if 'StaticKick' not in solver.Configs['Features']: 
 				solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt']
 			self.dep_dens(solver)
 
@@ -74,7 +73,7 @@ class ChimeraRun():
 					solver.field_drift(PXmean)
 				solver.G2B_FBRot()
 			else:
-				solver.poiss_corr(); solver.poiss_corr();solver.poiss_corr(); # IMPORTANT: ADDITINAL POISSON CLEANING
+				solver.poiss_corr(); solver.poiss_corr(); # ADDITINAL POISSON CLEANING
 				solver.maxwell_solver()
 				solver.G2B_FBRot()
 
@@ -117,23 +116,21 @@ class ChimeraRun():
 		if 'StaticKick' in solver.Configs['Features']: component='coords_halfstep'
 		if 'StillAsBackground' in solver.Configs['Features']: solver.Data['Rho'] += solver.Data['BckGrndRho']
 		for species in self.Particles:
-			if species.Data[component].shape[1] == 0 or 'Still' in species.Configs['Features']:
-				continue
-			else:
-				if 'KxShift' in solver.Configs:
-					if 'Xchunked' in species.Configs:
-						solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.Data[component],species.Data['weights'],\
-						  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
-					else:
-						solver.Data['Rho'] = chimera.dep_dens_env(species.Data[component],species.Data['weights'],\
-						  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
+			if species.Data[component].shape[1] == 0 or 'Still' in species.Configs['Features']: continue
+			if 'KxShift' in solver.Configs:
+				if 'Xchunked' in species.Configs:
+					solver.Data['Rho'] = chimera.dep_dens_env_chnk(species.Data[component],species.Data['weights'],\
+					  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
 				else:
-					if 'Xchunked' in species.Configs:
-						solver.Data['Rho'] = chimera.dep_dens_chnk(species.Data[component],species.Data['weights'],\
-						  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
-					else:
-						solver.Data['Rho'] = chimera.dep_dens(species.Data[component],species.Data['weights'],\
-						  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
+					solver.Data['Rho'] = chimera.dep_dens_env(species.Data[component],species.Data['weights'],\
+					  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
+			else:
+				if 'Xchunked' in species.Configs:
+					solver.Data['Rho'] = chimera.dep_dens_chnk(species.Data[component],species.Data['weights'],\
+					  solver.Data['Rho'],species.chunks,species.Configs['Xchunked'][1],solver.Args['leftX'],*solver.Args['DepProj'])
+				else:
+					solver.Data['Rho'] = chimera.dep_dens(species.Data[component],species.Data['weights'],\
+					  solver.Data['Rho'],solver.Args['leftX'],*solver.Args['DepProj'])
 		solver.fb_dens_in()
 
 	def dep_bg(self,solver):
@@ -160,6 +157,19 @@ class ChimeraRun():
 			for solver in self.Solvers:
 				if 'StaticKick' in solver.Configs['Features']: continue
 				solver.absorb_field(wind['AbsorbLayer'])
+
+	def add_plasma(self,wind):
+		if 'AddPlasma' in wind:
+			if 'IonsOnTop' in wind['Features']:
+				specie1, specie2 = self.Particles[:2]
+				parts_to_add = specie1.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
+				specie1.add_particles(*parts_to_add)
+				parts_to_add[-1] *= -1
+				specie2.add_particles(*parts_to_add)
+			else:
+				for species in self.Particles:
+					species.add_particles(*species.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, \
+					  ProfileFunc=wind['AddPlasma']))
 
 	def damp_plasma(self,wind):
 		if 'AbsorbLayer' in wind:
@@ -194,19 +204,6 @@ class ChimeraRun():
 				if 'SpaceCharge' in solver.Configs['Features']:
 					if 'StillAsBackground' in solver.Configs['Features']:	self.dep_bg(solver)
 					self.dep_dens(solver)
-
-	def add_plasma(self,wind):
-		if 'AddPlasma' in wind:
-			if 'IonsOnTop' in wind['Features']:
-				specie1, specie2 = self.Particles[:2]
-				parts_to_add = specie1.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
-				specie1.add_particles(*parts_to_add)
-				parts_to_add[-1] *= -1
-				specie2.add_particles(*parts_to_add)
-			else:
-				for species in self.Particles:
-					species.add_particles(*species.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, \
-					  ProfileFunc=wind['AddPlasma']))
 
 	def move_frame(self,wind):
 		for comp in self.Solvers+self.Particles:
