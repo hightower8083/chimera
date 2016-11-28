@@ -26,6 +26,15 @@ class ChimeraRun():
 		else:
 			self.MovingFrames = ()
 
+		self.init_damp_profile()
+		self.make_halfstep()
+
+	def init_damp_profile(self):
+		for solver in self.Solvers:
+			solver.Args['damp_profile'] = np.ones(solver.Args['Nx'])
+			for wind in self.MovingFrames:
+				solver.Args['damp_profile'] *= solver.get_damp_profile(wind['AbsorbLayer'])
+
 	def make_halfstep(self):
 		for species in self.Particles:
 			species.chunk_coords()
@@ -156,7 +165,7 @@ class ChimeraRun():
 		if 'AbsorbLayer' in wind and wind['AbsorbLayer']>0:
 			for solver in self.Solvers:
 				if 'StaticKick' in solver.Configs['Features']: continue
-				solver.absorb_field(wind['AbsorbLayer'])
+				solver.damp_field()
 
 	def add_plasma(self,wind):
 		if 'AddPlasma' in wind:
@@ -213,6 +222,7 @@ class ChimeraRun():
 
 	def frame_act(self,istep,act='stage1'):
 		for wind in self.MovingFrames:
+#			if act=='stage1': self.damp_fields(wind) ####
 			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: return
 			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: return
 			if act=='stage1':
@@ -230,3 +240,4 @@ class ChimeraRun():
 			if np.mod(istep, species.Configs['Xchunked'][1]+1)!= 0: continue
 			if species.Data['coords'].shape[-1] == 0: continue
 			species.chunk_coords('cntr')
+

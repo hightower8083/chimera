@@ -58,7 +58,7 @@ do ip=1,np
   enddo
 enddo
 
-curr(:,1,0,:) = curr(:,1,0,:) - curr(:,0,0,:)
+curr(:,1,0,:) = curr(:,1,0,:) + curr(:,0,0,:)
 curr(:,0,:,:) = 0.0
 end subroutine
 

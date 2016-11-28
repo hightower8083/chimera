@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import jn_zeros,jn,j1
 import chimera.moduls.fimera as chimera
+from scipy.linalg import pinv
 
 class Solver:
 	def __init__(self,solver_in):
@@ -42,7 +43,7 @@ class Solver:
 		Nkr = int(np.round(lengthR/dr))
 		Nr = Nkr+1
 		RgridFull = dr*(np.arange(Nr)-0.5)
-		lengthR = RgridFull[-1] + dr
+		lengthR = RgridFull[-1] + 0.5*dr
 
 ####################
 		if 'KxShift' in self.Configs:
@@ -62,9 +63,11 @@ class Solver:
 		for jm in np.arange(Mmin,Mmax+1):
 			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
 			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
-			In = np.linalg.pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
-			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
+			In = pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
+			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]     *In.dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
 			DmS2S[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
+#			DpS2S[:,:,jm] = 0.5*In.dot(kr[:,jm+1][None,:]     *jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
+#			DmS2S[:,:,jm] = 0.5*In.dot(kr[:,abs(jm-1)][None,:]*jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
 		if 'KxShift' in self.Configs:
 			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
 			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
@@ -95,7 +98,7 @@ class Solver:
 
 		for jm in np.arange(Mmin,Mmax+1):
 			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
-			In [:,:,jm] = np.linalg.pinv(Out[:,:,jm])
+			In [:,:,jm] = pinv(Out[:,:,jm])
 
 		if ('KxShift' in self.Configs) and (Nko>0):
 			Out    = np.concatenate((  Out[:,:,Mmin:],  Out[:,:,:Mmax+1]),axis=-1)
@@ -383,10 +386,13 @@ class Solver:
 		self.Data['vec_fb'][:] = 0.0
 		self.Data['scl_fb'][:] = 0.0
 
-	def absorb_field(self,Lf,config='left'):
+	def get_damp_profile(self,Lf,config='left'):
 		Nfilt = int(Lf/self.Args['dx'])
 		flt_gr = np.arange(Nfilt)
-		filt_shape = (flt_gr>=0.75*Nfilt)*0.25*(1-np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.75*Nfilt)))**2
+#		filt_shape = (flt_gr>0.625*Nfilt)+(flt_gr>=0.375*Nfilt)*(flt_gr<=0.625*Nfilt)*\
+#		  0.25*(1-np.cos(np.pi*(flt_gr-0.375*Nfilt)/(0.25*Nfilt)))**2
+		filt_shape = (flt_gr>=0.75*Nfilt)*\
+		  0.5*(1-np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))
 		filt = np.ones(self.Args['Nx'])
 		if config=='left':
 			filt[:Nfilt] = filt_shape
@@ -395,10 +401,13 @@ class Solver:
 		elif config=='both':
 			filt[:Nfilt] = filt_shape
 			filt[-Nfilt:] = filt_shape[::-1]
+		return filt
+
+	def damp_field(self):
 		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],\
-		  self.Args['kx'],filt)
+		  self.Args['kx'],self.Args['damp_profile'])
 		self.Data['B_fb'][:] = chimera.fb_filtr(self.Data['B_fb'],self.Args['leftX'],\
-		  self.Args['kx'],filt)
+		  self.Args['kx'],self.Args['damp_profile'])
 		self.B2G_FBRot()
 
 	def FBRot(self):
