@@ -66,10 +66,10 @@ enddo
  
 if (Rgrid(0)<0) then
   curr(:,1,nkO,:) = curr(:,1,nkO,:) + curr(:,0,nkO,:)
-  if (nkO>0) then
-    curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
-    curr(:,1,-nkO:-1,:) = curr(:,2,-nkO:-1,:)/9.0d0
-  endif
+!  if (nkO>0) then
+!    curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
+!    curr(:,1,-nkO:-1,:) = curr(:,2,-nkO:-1,:)/9.0d0
+!  endif
   curr(:,0,:,:) = 0.0
 endif
 
