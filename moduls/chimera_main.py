@@ -33,12 +33,12 @@ class ChimeraRun():
 		for solver in self.Solvers:
 			solver.Args['damp_profile'] = np.ones(solver.Args['Nx'])
 			for wind in self.MovingFrames:
+				if 'AbsorbLayer' not in wind: continue
 				solver.Args['damp_profile'] *= solver.get_damp_profile(wind['AbsorbLayer'])
 
 	def make_halfstep(self):
 		for species in self.Particles:
 			species.chunk_coords()
-			species.make_field()
 		self.project_current()
 		self.project_density()
 		for solver in self.Solvers:
@@ -46,6 +46,7 @@ class ChimeraRun():
 				solver.maxwell_solver_stat(species.Configs['MomentaMeans'][0])
 				solver.G2B_FBRot()
 		self.project_fields()
+		for species in self.Particles: species.make_device()
 		for species in self.Particles: species.push_velocs(dt=0.5*species.Configs['TimeStep'])
 
 	def make_step(self,istep):
@@ -56,8 +57,8 @@ class ChimeraRun():
 		self.project_density()
 		self.update_fields()
 		self.frame_act(istep,'stage2')
-		for species in self.Particles: species.make_field(istep)
 		self.project_fields()
+		for species in self.Particles: species.make_device(istep)
 		for species in self.Particles: species.push_velocs()
 
 	def project_current(self):
@@ -87,6 +88,7 @@ class ChimeraRun():
 				solver.G2B_FBRot()
 
 	def project_fields(self,component='coords'):
+		for species in self.Particles: species.make_field()
 		for solver in self.Solvers:
 			solver.fb_fld_out()
 			for species in self.Particles:
@@ -162,10 +164,13 @@ class ChimeraRun():
 					  solver.Data['BckGrndRho'],solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def damp_fields(self,wind):
-		if 'AbsorbLayer' in wind and wind['AbsorbLayer']>0:
-			for solver in self.Solvers:
-				if 'StaticKick' in solver.Configs['Features']: continue
-				solver.damp_field()
+		if 'AbsorbLayer' not in wind: 
+			return
+		elif wind['AbsorbLayer']<0:
+			return
+		for solver in self.Solvers:
+			if 'StaticKick' in solver.Configs['Features']: continue
+			solver.damp_field()
 
 	def add_plasma(self,wind):
 		if 'AddPlasma' in wind:
@@ -201,10 +206,10 @@ class ChimeraRun():
 				species.Data['momenta'] = chimera.align_data_vec(species.Data['momenta'],index2stay)
 				species.Data['weights'] = chimera.align_data_scl(species.Data['weights'],index2stay)
 
-				species.Data['coords'] = species.Data['coords'][:,:num2stay]
-				species.Data['coords_halfstep'] = species.Data['coords_halfstep'][:,:num2stay]
-				species.Data['momenta'] = species.Data['momenta'][:,:num2stay]
-				species.Data['weights'] = species.Data['weights'][:num2stay]
+				species.Data['coords'].resize((3,num2stay), refcheck=False)
+				species.Data['coords_halfstep'].resize((3,num2stay), refcheck=False)
+				species.Data['momenta'].resize((3,num2stay), refcheck=False)
+				species.Data['weights'].resize((num2stay,), refcheck=False)
 
 	def postframe_corr(self,wind):
 		if 'AbsorbLayer' or 'AddPlasma' in wind:
@@ -222,9 +227,8 @@ class ChimeraRun():
 
 	def frame_act(self,istep,act='stage1'):
 		for wind in self.MovingFrames:
-#			if act=='stage1': self.damp_fields(wind) ####
-			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: return
-			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: return
+			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: continue
+			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: continue
 			if act=='stage1':
 				self.damp_fields(wind)
 				self.move_frame(wind)
