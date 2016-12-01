@@ -64,10 +64,8 @@ class Solver:
 			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
 			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
 			In = pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
-			DpS2S[:,:,jm] = 0.5*kr[:,jm+1][None,:]     *In.dot(jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
-			DmS2S[:,:,jm] = 0.5*kr[:,abs(jm-1)][None,:]*In.dot(jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
-#			DpS2S[:,:,jm] = 0.5*In.dot(kr[:,jm+1][None,:]     *jn(jm,RgridFull[1:,None]*kr[:,jm+1][None,:]))
-#			DmS2S[:,:,jm] = 0.5*In.dot(kr[:,abs(jm-1)][None,:]*jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
+			DpS2S[:,:,jm] = In.dot(0.5*kr[:,    jm+1 ][None,:]*jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
+			DmS2S[:,:,jm] = In.dot(0.5*kr[:,abs(jm-1)][None,:]*jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
 		if 'KxShift' in self.Configs:
 			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
 			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
@@ -301,11 +299,11 @@ class Solver:
 
 	def fb_fld_out(self):
 		if 'KxShift' in self.Configs:
-			self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'][:,:,:,:3],self.Data['B_fb'][:,:,1:-1,:],\
+			self.Data['EB'] = chimera.fb_eb_out_env(self.Data['EB'],self.Data['EG_fb'],self.Data['B_fb'],\
 			  self.Args['leftX'],*self.Args['FBout'])
 			self.Data['EB'] = chimera.eb_corr_axis_env(self.Data['EB'])
 		else:
-			self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'][:,:,:,:3],self.Data['B_fb'][:,:,:-1,:],\
+			self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'],self.Data['B_fb'],\
 			  self.Args['leftX'],*self.Args['FBout'])
 			self.Data['EB'] = chimera.eb_corr_axis(self.Data['EB'])
 
@@ -389,8 +387,6 @@ class Solver:
 	def get_damp_profile(self,Lf,config='left'):
 		Nfilt = int(Lf/self.Args['dx'])
 		flt_gr = np.arange(Nfilt)
-#		filt_shape = (flt_gr>0.625*Nfilt)+(flt_gr>=0.375*Nfilt)*(flt_gr<=0.625*Nfilt)*\
-#		  0.25*(1-np.cos(np.pi*(flt_gr-0.375*Nfilt)/(0.25*Nfilt)))**2
 		filt_shape = (flt_gr>=0.75*Nfilt)*\
 		  0.5*(1-np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))
 		filt = np.ones(self.Args['Nx'])

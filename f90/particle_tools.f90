@@ -76,7 +76,7 @@ real (kind=8), intent(inout) :: coord(4,np)
 integer, intent(out)         :: indPart
 integer                      :: ip,ir,ix
 real (kind=8)                :: x0,x1,r0,r1,dr_2,pi=4.d0*DATAN(1.d0),&
-                                coords_cell(2,PPC)
+                                coords_cell(2,PPC), Rgrid_shft(nr)
 complex (kind=8)             :: Ocell(PPC),Oshft, ii=(0.0d0,1.0d0)
 
 !f2py intent(in) :: Xgrid,Rgrid,PackX,PackR,PackO,RandPackO
@@ -86,12 +86,13 @@ complex (kind=8)             :: Ocell(PPC),Oshft, ii=(0.0d0,1.0d0)
 
 coord  = 0.0
 dr_2 = 0.5*(Rgrid(2)-Rgrid(1))
+Rgrid_shft = Rgrid + dr_2
 
 indPart = 0
 do ir=1,nr-1
   do ix=1,nx-1
-    r0 = Rgrid(ir)+dr_2
-    r1 = Rgrid(ir+1)+dr_2
+    r0 = Rgrid_shft(ir)
+    r1 = Rgrid_shft(ir+1)
     x0 = Xgrid(ix)
     x1 = Xgrid(ix+1)
     coords_cell(1,:) = x0+(x1-x0)*PackX
