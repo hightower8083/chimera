@@ -6,7 +6,7 @@ real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np),leftX,Rgrid(0:
                               dx_inv,dr_inv,kx0
 complex(kind=8),intent(inout):: curr(0:nx,0:nr,-nkO:nkO,3)
 integer         :: ix,ir,ip,k,l,iO
-real(kind=8)    :: xp,yp,zp,rp,gp,veloc(3),S0(0:1,2), inv9=1.0d0/9.0d0
+real(kind=8)    :: xp,yp,zp,rp,gp,veloc(3),S0(0:1,2)
 complex(kind=8) :: ii=(0.0d0,1.0d0),curr_p(0:1,0:1),phaseO(0:nkO),&
                    phase_m,wp
 
@@ -66,11 +66,7 @@ enddo
  
 !$omp parallel do default(shared) private(l) schedule(static)
 do l=1,3
-  curr(:,1,0,l) = curr(:,1,0,l) - curr(:,0,0,l)
-  if (nkO>0) then
-    curr(:,1,1:nkO,l) = curr(:,2,1:nkO,l)*inv9
-    curr(:,1,-nkO:-1,l) = curr(:,2,-nkO:-1,l)*inv9
-  endif
+  curr(:,1,:,l) = curr(:,1,:,l) - curr(:,0,:,l)
   curr(:,0,:,l) = 0.0
 enddo
 !$omp end parallel do
@@ -85,7 +81,7 @@ real (kind=8), intent(in)  :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),&
                               dx_inv,dr_inv,kx0
 complex(kind=8),intent(inout):: dens(0:nx,0:nr,-nkO:nkO)
 integer         :: ix,ir,ip,k,iO
-real(kind=8)    :: xp,yp,zp,rp,S0(0:1,2), inv9=1.0d0/9.0d0
+real(kind=8)    :: xp,yp,zp,rp,S0(0:1,2)
 complex(kind=8) :: ii=(0.0d0,1.0d0),dens_p(0:1,0:1),phaseO(0:nkO),phase_m,wp
 
 !f2py intent(in) :: coord,wghts,leftX,Rgrid,dx_inv,dr_inv,kx0
@@ -135,11 +131,7 @@ do ip=1,np
   enddo
 enddo
 
-dens(:,1,0) = dens(:,1,0) - dens(:,0,0)
-if (nkO>0) then
-  dens(:,1,  1:nkO) = dens(:,2,1:nkO)*inv9
-  dens(:,1,-nkO:-1) = dens(:,2,-nkO:-1)*inv9
-endif
+dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
 dens(:,0,:) = 0.0
 
 end subroutine

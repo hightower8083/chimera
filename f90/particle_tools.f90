@@ -1,26 +1,25 @@
-subroutine push_velocs(momenta,wghts,Fld,dt,np)
+subroutine push_velocs(momenta,Fld,dt,np)
 implicit none
 integer, intent(in) :: np
 real (kind=8), intent(inout) :: momenta(3,np)
-real (kind=8), intent(in) :: dt, wghts(np)
-real (kind=8), dimension(6,np), intent(in) :: Fld
-real (kind=8) :: gamma, Um(3), t(3), t2,s(3), U0(3), Up(3),momenta_p(3),Fld_p(6)
+real (kind=8), intent(in)    :: Fld(6,np), dt
+real (kind=8) :: gamma, Um(3), t(3), t2,s(3), U0(3), Up(3),momenta_p(3),Fld_p(6),dt_2
 integer:: ip
 
 !f2py intent(in,out) :: momenta
-!f2py intent(in) :: wghts,dt, Fld
+!f2py intent(in) :: Fld,dt
 !f2py intent(hide) :: np
 
-!$omp parallel default(shared) private(gamma,Um,t,t2,s,U0,Up,ip,momenta_p,Fld_p)
+!$omp parallel default(shared) private(gamma,Um,t,t2,s,U0,Up,ip,momenta_p,Fld_p,dt_2)
+dt_2 = 0.5*dt
 !$omp do schedule(static)
 do ip=1,np
-  if (wghts(ip)==0.0) CYCLE
   momenta_p = momenta(:,ip)
   Fld_p = Fld(:,ip)
 
-  Um = momenta_p + 0.5*dt*Fld_p(1:3)
+  Um = momenta_p + dt_2*Fld_p(1:3)
   gamma = SQRT(1.0+SUM(Um*Um))
-  t =  0.5*dt*Fld_p(4:6)/gamma
+  t =  dt_2*Fld_p(4:6)/gamma
   t2 = SUM(t*t)
   s = 2*t/(1+t2)
 
@@ -32,34 +31,32 @@ do ip=1,np
   Up(2) = Um(2) -  U0(1)*s(3) + U0(3)*s(1)
   Up(3) = Um(3) +  U0(1)*s(2) - U0(2)*s(1)
 
-  momenta_p = Up + 0.5*dt*Fld_p(1:3)
+  momenta_p = Up + dt_2*Fld_p(1:3)
   momenta(:,ip) = momenta_p
 enddo
 !$omp end do
 !$omp end parallel
 end subroutine
 
-subroutine push_coords(coord,momenta,coord_cntr,wghts,dt,np)
+subroutine push_coords(coord,momenta,coord_cntr,dt,np)
 implicit none
 integer, intent(in) :: np
 real (kind=8), intent(inout) :: coord(3,np), coord_cntr(3,np)
-real (kind=8), intent(in) :: momenta(3,np), wghts(np)
-real (kind=8), intent(in) :: dt
-real (kind=8) :: coord_p(3),coord_cntr_p(3),momenta_p(3),gp
+real (kind=8), intent(in) :: momenta(3,np), dt
+real (kind=8) :: coord_p(3),coord_cntr_p(3),momenta_p(3),dt_gp
 integer:: ip
 
 !f2py intent(in,out) :: coord,coord_cntr
-!f2py intent(in) :: momenta,wghts,dt
+!f2py intent(in) :: momenta,dt
 !f2py intent(hide) :: np
 
-!$omp parallel do default(shared) private(ip,coord_p,coord_cntr_p,momenta_p,gp)
+!$omp parallel do default(shared) private(ip,coord_p,coord_cntr_p,momenta_p,dt_gp)
 do ip=1,np
-  if (wghts(ip)==0.0) CYCLE
   coord_p = coord(:,ip)
-  coord_cntr_p = coord_p
   momenta_p = momenta(:,ip)
-  gp = DSQRT(1.0+momenta_p(1)*momenta_p(1)+momenta_p(2)*momenta_p(2)+momenta_p(3)*momenta_p(3))
-  coord_p = coord_p + dt*momenta_p/gp
+  coord_cntr_p = coord_p
+  dt_gp = dt/DSQRT(1.0+SUM(momenta_p*momenta_p))
+  coord_p = coord_p + momenta_p*dt_gp
   coord_cntr_p = 0.5*(coord_cntr_p + coord_p)
   coord(:,ip) = coord_p
   coord_cntr(:,ip) = coord_cntr_p
