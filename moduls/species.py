@@ -126,9 +126,9 @@ class Specie:
 	def make_field(self):
 		if 'Still' in self.Configs['Features']: return
 		if self.Data['EB'].shape[-1]!=self.Data['coords'].shape[-1]:
-			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
-		else:
-			self.Data['EB'][:] = 0.0
+			self.Data['EB'].resize((6,self.Data['coords'].shape[1]), refcheck=False)
+#			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
+		self.Data['EB'][:] = 0.0
    
 	def make_device(self,i_step=0):
 		if 'Still' in self.Configs['Features']: return
@@ -139,14 +139,13 @@ class Specie:
 	def push_velocs(self,dt=None):
 		if dt==None:dt=self.Configs['TimeStep']
 		if self.Data['coords'].shape[-1]==0 or ('Still' in self.Configs['Features']): return
-		self.Data['momenta'] = chimera.push_velocs(self.Data['momenta'],self.Data['weights'],self.Data['EB'],self.push_fact*dt)
+		self.Data['momenta'] = chimera.push_velocs(self.Data['momenta'],self.Data['EB'],self.push_fact*dt)
 
 	def push_coords(self,dt=None):
 		dt=self.Configs['TimeStep']
 		if self.Data['coords'].shape[1]==0 or ('Still' in self.Configs['Features']): return
 		self.Data['coords'],self.Data['coords_halfstep'] = \
-		  chimera.push_coords(self.Data['coords'],self.Data['momenta'],\
-		  self.Data['coords_halfstep'],self.Data['weights'],dt)
+		  chimera.push_coords(self.Data['coords'], self.Data['momenta'], self.Data['coords_halfstep'], dt)
 
 	def denoise(self,WaveNums2Kill):
 		for k_supp in WaveNums2Kill:

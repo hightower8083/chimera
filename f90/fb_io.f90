@@ -166,7 +166,6 @@ enddo
 call fftw_destroy_plan(plan_out)
 end subroutine
 
-
 subroutine fb_eb_out_env(eb_spc,e_fb,b_fb,leftX,kx,Out,nkx,nr,nkO,nkr)
 use, intrinsic :: iso_c_binding
 implicit none 
