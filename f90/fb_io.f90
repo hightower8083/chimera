@@ -125,7 +125,7 @@ implicit none
 include "fftw3.f03"
 integer, intent(in)        :: nkx,nr,nkO,nkr
 real (kind=8), intent(in)  :: leftX,kx(nkx),Out(nkr,nr,nkO)
-complex(kind=8),intent(in) :: e_fb(nkx,nkr,nkO,6),b_fb(nkx,nkr,nkO+1,3)
+complex(kind=8),intent(in) :: e_fb(nkx,nkr,nkO,6),b_fb(nkx,nkr,nkO,3)
 complex(kind=8),intent(inout):: eb_spc(nkx,0:nr,nkO,6) 
 integer :: l,ir,ik,iO
 complex(kind=8) :: ii=(0.0d0,1.0d0),shiftX(nkx)

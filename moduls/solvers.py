@@ -188,7 +188,8 @@ class Solver:
 		self.Data['scl_fb'] = np.zeros((Nx,Nkr,Mtot),dtype='complex',order='F')
 
 		self.Data['J_fb']  = np.zeros_like(self.Data['vec_fb'])
-		self.Data['B_fb']  = np.zeros((Nx,Nkr,Mtot_ext,3),dtype='complex',order='F')
+		self.Data['B_fb']  = np.zeros((Nx,Nkr,Mtot,3),dtype='complex',order='F')
+#		self.Data['B_fb']  = np.zeros((Nx,Nkr,Mtot_ext,3),dtype='complex',order='F')
 
 		if 'SpaceCharge' in self.Configs['Features'] or 'StaticKick' in self.Configs['Features']:
 			print 'Space charge is added'
@@ -335,14 +336,17 @@ class Solver:
 		if 'KxShift' in self.Configs:
 			self.Data['B_fb'] = chimera.fb_rot_plus_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		else:
-			self.Data['B_fb'] = chimera.fb_rot_plus(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
-		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact_ext'])
+			self.Data['B_fb'] = chimera.fb_rot(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
+#			self.Data['B_fb'] = chimera.fb_rot_plus(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
+		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact'])
+#		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact_ext'])
 
 	def B2G_FBRot(self):
 		if 'KxShift' in self.Configs:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+#			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 
 	def add_gauss_beam(self,S):
 		k0 = 2*np.pi*S['k0']
