@@ -391,8 +391,10 @@ class Solver:
 	def get_damp_profile(self,Lf,config='left'):
 		Nfilt = int(Lf/self.Args['dx'])
 		flt_gr = np.arange(Nfilt)
-		filt_shape = (flt_gr>=0.75*Nfilt)*\
-		  0.5*(1-np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))
+		filt_shape = (flt_gr>=0.5*Nfilt)*\
+		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.5*Nfilt)/(0.5*Nfilt)))**2
+#		filt_shape = (flt_gr>0.75*Nfilt)+(flt_gr>=0.5*Nfilt)*(flt_gr<=0.75*Nfilt)*\
+#		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.5*Nfilt)/(0.25*Nfilt)))**2
 		filt = np.ones(self.Args['Nx'])
 		if config=='left':
 			filt[:Nfilt] = filt_shape
@@ -406,9 +408,11 @@ class Solver:
 	def damp_field(self):
 		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],\
 		  self.Args['kx'],self.Args['damp_profile'])
-		self.Data['B_fb'][:] = chimera.fb_filtr(self.Data['B_fb'],self.Args['leftX'],\
+		self.Data['EG_fb'][:,:,:,3:] = chimera.fb_filtr(self.Data['EG_fb'][:,:,:,3:],self.Args['leftX'],\
 		  self.Args['kx'],self.Args['damp_profile'])
-		self.B2G_FBRot()
+#		self.Data['B_fb'][:] = chimera.fb_filtr(self.Data['B_fb'],self.Args['leftX'],\
+#		  self.Args['kx'],self.Args['damp_profile'])
+#		self.B2G_FBRot()
 
 	def FBRot(self):
 		if 'KxShift' in self.Configs:
