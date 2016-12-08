@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.special import jn_zeros,jn,j1
 import chimera.moduls.fimera as chimera
-from scipy.linalg import pinv
+from numpy.linalg import pinv
 
 class Solver:
 	def __init__(self,solver_in):
