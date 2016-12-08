@@ -83,7 +83,7 @@ class ChimeraRun():
 					solver.field_drift(PXmean)
 				solver.G2B_FBRot()
 			else:
-				solver.poiss_corr(); solver.poiss_corr(); # ADDITINAL POISSON CLEANING
+				for correction in range(2): solver.poiss_corr()		# MULTIPLE POISSON CLEANING
 				solver.maxwell_solver()
 				solver.G2B_FBRot()
 
@@ -166,7 +166,7 @@ class ChimeraRun():
 	def damp_fields(self,wind):
 		if 'AbsorbLayer' not in wind: 
 			return
-		elif wind['AbsorbLayer']<0:
+		elif wind['AbsorbLayer']<=0:
 			return
 		for solver in self.Solvers:
 			if 'StaticKick' in solver.Configs['Features']: continue
@@ -228,9 +228,10 @@ class ChimeraRun():
 	def frame_act(self,istep,act='stage1'):
 		for wind in self.MovingFrames:
 			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: continue
+			if act=='stage1': self.damp_fields(wind)
 			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: continue
 			if act=='stage1':
-				self.damp_fields(wind)
+#				self.damp_fields(wind)
 				self.move_frame(wind)
 				self.add_plasma(wind)
 				self.damp_plasma(wind)
