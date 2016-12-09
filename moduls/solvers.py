@@ -299,13 +299,11 @@ class Solver:
 		self.Data['scl_fb'] = chimera.fb_scl_in(self.Data['scl_fb'],self.Data['scl_spc'],self.Args['leftX'],*self.Args['FBIn'])
 
 	def fb_fld_out(self):
+		self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'],self.Data['B_fb'],\
+		  self.Args['leftX'],*self.Args['FBout'])
 		if 'KxShift' in self.Configs:
-			self.Data['EB'] = chimera.fb_eb_out_env(self.Data['EB'],self.Data['EG_fb'],self.Data['B_fb'],\
-			  self.Args['leftX'],*self.Args['FBout'])
 			self.Data['EB'] = chimera.eb_corr_axis_env(self.Data['EB'])
 		else:
-			self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'],self.Data['B_fb'],\
-			  self.Args['leftX'],*self.Args['FBout'])
 			self.Data['EB'] = chimera.eb_corr_axis(self.Data['EB'])
 
 	def FBGrad(self):
@@ -334,19 +332,16 @@ class Solver:
 
 	def G2B_FBRot(self):
 		if 'KxShift' in self.Configs:
-			self.Data['B_fb'] = chimera.fb_rot_plus_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
+			self.Data['B_fb'] = chimera.fb_rot_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		else:
 			self.Data['B_fb'] = chimera.fb_rot(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
-#			self.Data['B_fb'] = chimera.fb_rot_plus(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact'])
-#		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact_ext'])
 
 	def B2G_FBRot(self):
 		if 'KxShift' in self.Configs:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 		else:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
-#			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_minus(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 
 	def add_gauss_beam(self,S):
 		k0 = 2*np.pi*S['k0']
@@ -363,9 +358,9 @@ class Solver:
 			DT = -1.j*w
 		else:
 			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# sin laser phase
-			self.Data['scl_spc'][:,:,0] = a0*np.sin(k0*(Xgrid[:,None]-S['x0']))*\
+			self.Data['scl_spc'][:,:,0] = a0*np.cos(k0*(Xgrid[:,None]-S['x0']))*\
 			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2-Rgrid[None,:]**2/S['LR']**2) *\
-			  (abs(Xgrid[:,None]-S['x0'])< 3.5*S['Lx'])*(abs(Rgrid[None,:])< 3.5*S['LR'])
+			  (abs(Xgrid[:,None]-S['x0'])< 4.0*S['Lx']) #*(abs(Rgrid[None,:])< 3.5*S['LR'])
 			self.Data['scl_spc'][:,0,0] = 0.0
 			self.fb_scl_spc_in()
 			self.Data['vec_fb'][:,:,:,2] = self.Data['scl_fb']/np.float(self.Args['Nx'])
