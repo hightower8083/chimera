@@ -199,5 +199,4 @@ deallocate(loc_right)
 
 dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
 dens(:,0,:) = 0.0
-
 end subroutine
