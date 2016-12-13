@@ -3,7 +3,7 @@ from scipy.special import jn_zeros,jn,j1
 import chimera.moduls.fimera as chimera
 from numpy.linalg import pinv
 
-poiss_corr_num = 3
+poiss_corr_num = 4
 
 class Solver:
 	def __init__(self,solver_in):
@@ -45,7 +45,7 @@ class Solver:
 		Nkr = int(np.round(lengthR/dr))
 		Nr = Nkr+1
 		RgridFull = dr*(np.arange(Nr)-0.5)
-		lengthR = RgridFull[-1] + 0.5*dr
+		lengthR = RgridFull[-1] + dr
 
 ####################
 		if 'KxShift' in self.Configs:
@@ -170,7 +170,9 @@ class Solver:
 			self.Args['FBoutFull'] = (kx_env,OutFull)
 		else:
 			self.Args['DepFact'] = np.asfortranarray( (2*np.pi)**2/Nx*\
-			  np.cos(0.5*dr*kr_g)**2*np.cos(0.5*dx*kx_g)[:,:,None]**2)
+			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*\
+			  np.cos(0.5*np.pi*kx_g/np.abs(kx_g).max())[:,:,None]**2)
+
 			self.Args['DepProj']   = (Rgrid,1./dx,1./dr)
 			self.Args['FBCurrIn']  = (kx,InCurr)
 			self.Args['FBIn']      = (kx,In)
@@ -330,12 +332,13 @@ class Solver:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
 
 	def G2B_FBRot(self):
-		self.divG_clean()
+#		self.divG_clean()
 		if 'KxShift' in self.Configs:
 			self.Data['B_fb'] = chimera.fb_rot_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		else:
 			self.Data['B_fb'] = chimera.fb_rot(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact'])
+#		self.divB_clean()
 
 	def B2G_FBRot(self):
 		if 'KxShift' in self.Configs:
@@ -368,7 +371,6 @@ class Solver:
 			DT = -1.j*w*np.sign(kx_g[:,:,None,None] + (kx_g[:,:,None,None]==0))
 
 		EE = self.Data['vec_fb'].copy()
-		EE = self.div_clean(EE)
 		GG  = DT*EE
 
 		self.Data['vec_fb'][:] = np.cos(w*X_focus)*EE + np.sin(w*X_focus)/w*GG
@@ -377,6 +379,8 @@ class Solver:
 		EE *= np.exp(1.j*kx_g[:,:,None,None]*X_focus)
 		GG *= np.exp(1.j*kx_g[:,:,None,None]*X_focus)
 
+		EE = self.div_clean(EE)
+		GG = self.div_clean(GG)
 		self.Data['EG_fb'][:,:,:,:3] += EE
 		self.Data['EG_fb'][:,:,:,3:] += GG
     
@@ -386,8 +390,8 @@ class Solver:
 	def get_damp_profile(self,Lf,config='left'):
 		Nfilt = int(Lf/self.Args['dx'])
 		flt_gr = np.arange(Nfilt)
-		filt_shape = (flt_gr>=0.5*Nfilt)*\
-		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.5*Nfilt)/(0.5*Nfilt)))**2
+		filt_shape = (flt_gr>=0.75*Nfilt)*\
+		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))**2
 		filt = np.ones(self.Args['Nx'])
 		if config=='left':
 			filt[:Nfilt] = filt_shape
@@ -426,6 +430,11 @@ class Solver:
 		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
 		self.FBGradDiv()
 		self.Data['EG_fb'][:,:,:,3:] = chimera.poiss_corr_wo_spchrg(self.Data['EG_fb'][:,:,:,3:],self.Data['vec_fb'],self.Args['PoissFact'])
+
+	def divB_clean(self):
+		self.Data['vec_fb'][:] = self.Data['B_fb']
+		self.FBGradDiv()
+		self.Data['B_fb'] = chimera.poiss_corr_wo_spchrg(self.Data['B_fb'],self.Data['vec_fb'],self.Args['PoissFact'])
 
 	def div_clean(self,vec):
 		self.Data['vec_fb'][:] = vec
