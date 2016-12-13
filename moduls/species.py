@@ -110,20 +110,27 @@ class Specie:
 		coords = coords[0:3].astype('d',order='F')
 		momenta = np.vstack((px,py,pz)).astype('d',order='F')
 		return [coords,momenta,weights]
-
+   
 	def add_particles(self,coords,momenta,weights):
-		self.Data['coords'] = np.concatenate((self.Data['coords'], coords),axis=1)
-		self.Data['coords_halfstep'] = np.concatenate((self.Data['coords_halfstep'], coords),axis=1)
-		self.Data['momenta'] = np.concatenate((self.Data['momenta'], momenta),axis=1)
-		self.Data['weights'] = np.concatenate((self.Data['weights'], weights),axis=0)
-		dummyEB = np.zeros((6,weights.shape[0]),order='F')
-		self.Data['EB'] = np.concatenate((self.Data['EB'],dummyEB),axis=1)
-
-	def make_field(self,i_step=0):
+		Num2actl = self.Data['coords'].shape[-1]
+		Num2add = coords.shape[-1]
+		self.Data['coords'].resize((3,Num2actl+Num2add), refcheck=False)
+		self.Data['coords'][:,-Num2add:] = coords
+		self.Data['coords_halfstep'].resize((3,Num2actl+Num2add), refcheck=False)
+		self.Data['coords_halfstep'][:,-Num2add:] = coords
+		self.Data['momenta'].resize((3,Num2actl+Num2add), refcheck=False)
+		self.Data['momenta'][:,-Num2add:] = momenta
+		self.Data['weights'].resize((Num2actl+Num2add,), refcheck=False)
+		self.Data['weights'][-Num2add:] = weights
+ 
+	def make_field(self):
+		if 'Still' in self.Configs['Features']: return
 		if self.Data['EB'].shape[-1]!=self.Data['coords'].shape[-1]:
-			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
-		else:
-			self.Data['EB'][:] = 0.0
+			self.Data['EB'].resize((6,self.Data['coords'].shape[1]), refcheck=False)
+#			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
+		self.Data['EB'][:] = 0.0
+   
+	def make_device(self,i_step=0):
 		if 'Still' in self.Configs['Features']: return
 		for device in self.Devices:
 			pump_fld = device[0]
@@ -132,14 +139,13 @@ class Specie:
 	def push_velocs(self,dt=None):
 		if dt==None:dt=self.Configs['TimeStep']
 		if self.Data['coords'].shape[-1]==0 or ('Still' in self.Configs['Features']): return
-		self.Data['momenta'] = chimera.push_velocs(self.Data['momenta'],self.Data['weights'],self.Data['EB'],self.push_fact*dt)
+		self.Data['momenta'] = chimera.push_velocs(self.Data['momenta'],self.Data['EB'],self.push_fact*dt)
 
 	def push_coords(self,dt=None):
 		dt=self.Configs['TimeStep']
 		if self.Data['coords'].shape[1]==0 or ('Still' in self.Configs['Features']): return
 		self.Data['coords'],self.Data['coords_halfstep'] = \
-		  chimera.push_coords(self.Data['coords'],self.Data['momenta'],\
-		  self.Data['coords_halfstep'],self.Data['weights'],dt)
+		  chimera.push_coords(self.Data['coords'], self.Data['momenta'], self.Data['coords_halfstep'], dt)
 
 	def denoise(self,WaveNums2Kill):
 		for k_supp in WaveNums2Kill:
@@ -187,7 +193,7 @@ class Specie:
 		ip=0
 		for ix in np.arange(Xgrid.shape[0]-1):
 			for ir in np.arange(Rgrid.shape[0]-1):
-				rand_cell = np.random.rand(3,self.Num_p)
+				rand_cell = 2*(np.random.rand(3,self.Num_p)-0.5)
 				xx_cell = Xgrid[ix] + self.Args['dx']*(np.arange(self.Num_p)+0.5*rand_cell[0])/self.Num_p
 				rr_cell = Rgrid[ir] + self.Args['dr']*(np.arange(self.Num_p)+0.5*rand_cell[1])/self.Num_p
 				oo_cell = 2*np.pi*(np.arange(self.Num_p)+0.5*rand_cell[2])/self.Num_p
@@ -197,9 +203,10 @@ class Specie:
 				coords[0,ip:ip+self.Num_p] = xx_cell
 				coords[1,ip:ip+self.Num_p] = rr_cell*np.cos(oo_cell)
 				coords[2,ip:ip+self.Num_p] = rr_cell*np.sin(oo_cell)
-				rc = Rgrid[ir]+0.5*self.Args['dr']
-				if Rgrid[ir]<0: rc = 0.125*self.Args['dr']
-				coords[3,ip:ip+self.Num_p] = np.ones(self.Num_p)*rc
+				coords[3,ip:ip+self.Num_p] = rr_cell
+#				rc = Rgrid[ir]+0.5*self.Args['dr']
+#				if Rgrid[ir]<0: rc = 0.125*self.Args['dr']
+#				coords[3,ip:ip+self.Num_p] = np.ones(self.Num_p)*rc
 				ip += self.Num_p
 		return coords,ip
 

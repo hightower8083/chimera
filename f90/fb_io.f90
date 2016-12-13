@@ -125,7 +125,7 @@ implicit none
 include "fftw3.f03"
 integer, intent(in)        :: nkx,nr,nkO,nkr
 real (kind=8), intent(in)  :: leftX,kx(nkx),Out(nkr,nr,nkO)
-complex(kind=8),intent(in) :: e_fb(nkx,nkr,nkO,3),b_fb(nkx,nkr,nkO,3)
+complex(kind=8),intent(in) :: e_fb(nkx,nkr,nkO,6),b_fb(nkx,nkr,nkO,3)
 complex(kind=8),intent(inout):: eb_spc(nkx,0:nr,nkO,6) 
 integer :: l,ir,ik,iO
 complex(kind=8) :: ii=(0.0d0,1.0d0),shiftX(nkx)
@@ -134,12 +134,11 @@ type(C_PTR) :: plan_out
 
 !f2py intent(in) :: e_fb,b_fb,leftX,kx,Out
 !f2py intent(in,out) :: eb_spc
-!f2py intent(hide) :: nkx,nr,nkO,nkr
+!f2py intent(hide) :: nkx,nr,nkO,nkr,nkO
 
 eb_spc = 0.0d0
 plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 shiftX = dcos(leftX*kx) + ii*dsin(leftX*kx)
-
 !$omp parallel default(shared), private(iO,l,Aifft,Afft,ik,ir)
 do l=1,3
   do iO = 1,nkO
@@ -164,7 +163,6 @@ do l=1,3
   enddo
 enddo
 !$omp end parallel
-
 call fftw_destroy_plan(plan_out)
 end subroutine
 
