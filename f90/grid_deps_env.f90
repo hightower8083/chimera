@@ -64,14 +64,12 @@ do ip=1,np
   enddo
 enddo
  
-if (Rgrid(0)<0) then
-  curr(:,1,nkO,:) = curr(:,1,nkO,:) + curr(:,0,nkO,:)
-  if (nkO>0) then
-    curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
-    curr(:,1,-nkO:-1,:) = curr(:,2,-nkO:-1,:)/9.0d0
-  endif
-  curr(:,0,:,:) = 0.0
-endif
+!$omp parallel do default(shared) private(l) schedule(static)
+do l=1,3
+  curr(:,1,:,l) = curr(:,1,:,l) - curr(:,0,:,l)
+  curr(:,0,:,l) = 0.0
+enddo
+!$omp end parallel do
 
 end subroutine
 
@@ -133,10 +131,9 @@ do ip=1,np
   enddo
 enddo
 
-if (Rgrid(0)<0) then
-  dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
-  dens(:,0,:) = 0.0
-endif
+dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
+dens(:,0,:) = 0.0
+
 end subroutine
 
 subroutine proj_fld_env(coord,wghts,Fld,Fld_tot,leftX,Rgrid,dx_inv,&
@@ -147,7 +144,7 @@ real (kind=8),    intent(in) :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),dx_inv,d
 complex (kind=8), intent(in) :: Fld(0:nx,0:nr,-nkO:nkO,6)
 real (kind=8), intent(inout) :: Fld_tot(6,np)
 integer         :: ix,ir,ip,iO,k,l
-real(kind=8)    :: xp,yp,zp,wp,rp,S0(0:1,2),Fld_p(6)!,pi2m1=0.125d0/DATAN(1.d0)
+real(kind=8)    :: xp,yp,zp,wp,rp,S0(0:1,2),Fld_p(6)
 complex(kind=8) :: ii=(0.0d0,1.0d0),phase_p,phaseO(0:nkO),projcomp(0:1,0:1),projcompO(0:1,0:1)
 
 !f2py intent(in)     :: coord,wghts,Fld,leftX,Rgrid,dx_inv,dr_inv,kx0
@@ -207,7 +204,7 @@ do ip=1,np
       enddo
     endif
   enddo
-  Fld_tot(:,ip) = Fld_tot(:,ip)+Fld_p
+  Fld_tot(:,ip) = Fld_tot(:,ip) + Fld_p
 enddo
 !$omp end do      
 !$omp end parallel

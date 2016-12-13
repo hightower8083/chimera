@@ -58,11 +58,13 @@ do ip=1,np
   enddo
 enddo
 
-if (Rgrid(0)<0) then
-  curr(:,1,0,:) = curr(:,1,0,:) + curr(:,0,0,:)
-  if (nkO>0) curr(:,1,1:nkO,:) = curr(:,2,1:nkO,:)/9.0d0
-  curr(:,0,:,:) = 0.0
-endif
+!$omp parallel do default(shared) private(l) schedule(static)
+do l=1,3
+  curr(:,1,:,l) = curr(:,1,:,l) - curr(:,0,:,l)
+  curr(:,0,:,l) = 0.0
+enddo
+!$omp end parallel do
+
 end subroutine
 
 subroutine dep_dens(coord,wghts,dens,leftX,Rgrid,dx_inv,dr_inv,&
@@ -120,10 +122,9 @@ do ip=1,np
   enddo
 enddo
 
-if (Rgrid(0)<0) then
-  dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
-  dens(:,0,:) = 0.0
-endif
+dens(:,1,:) = dens(:,1,:) - dens(:,0,:)
+dens(:,0,:) = 0.0
+
 end subroutine
 
 subroutine proj_fld(coord,wghts,Fld,Fld_tot,leftX,Rgrid,dx_inv,&
@@ -185,10 +186,10 @@ do ip=1,np
 
   Fld_p = 0.0d0
   do l=1,6
-    Fld_p(l) = Fld_p(l) + SUM(DBLE(projcomp*Fld(ix:ix+1,ir:ir+1,0:nkO,l)))
+    Fld_p(l) = Fld_p(l) + SUM(DBLE(projcomp*Fld(ix:ix+1,ir:ir+1,:,l)))
   enddo
 
-  Fld_tot(:,ip) = Fld_tot(:,ip)+Fld_p
+  Fld_tot(:,ip) = Fld_tot(:,ip) + Fld_p
 enddo
 !$omp end do      
 !$omp end parallel
