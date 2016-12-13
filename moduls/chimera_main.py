@@ -164,52 +164,50 @@ class ChimeraRun():
 					  solver.Data['BckGrndRho'],solver.Args['leftX'],*solver.Args['DepProj'])
 
 	def damp_fields(self,wind):
-		if 'AbsorbLayer' not in wind: 
-			return
-		elif wind['AbsorbLayer']<=0:
-			return
+		if 'AbsorbLayer' not in wind: return
+		if wind['AbsorbLayer']<=0: return
 		for solver in self.Solvers:
 			if 'StaticKick' in solver.Configs['Features']: continue
 			solver.damp_field()
 
 	def add_plasma(self,wind):
-		if 'AddPlasma' in wind:
-			if 'IonsOnTop' in wind['Features']:
-				specie1, specie2 = self.Particles[:2]
-				parts_to_add = specie1.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
-				specie1.add_particles(*parts_to_add)
-				parts_to_add[-1] *= -1
-				specie2.add_particles(*parts_to_add)
-			else:
-				for species in self.Particles:
-					species.add_particles(*species.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, \
-					  ProfileFunc=wind['AddPlasma']))
+		if 'AddPlasma' not in wind: return
+		if 'IonsOnTop' in wind['Features']:
+			specie1, specie2 = self.Particles[:2]
+			parts_to_add = specie1.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, ProfileFunc=wind['AddPlasma'])
+			specie1.add_particles(*parts_to_add)
+			parts_to_add[-1] *= -1
+			specie2.add_particles(*parts_to_add)
+		else:
+			for species in self.Particles:
+				species.add_particles(*species.gen_parts(Xsteps=int(wind['shiftX']/wind['TimeStep'])+1, \
+				  ProfileFunc=wind['AddPlasma']))
 
 	def damp_plasma(self,wind):
-		if 'AbsorbLayer' in wind:
-			for species in self.Particles:
-				if species.Data['coords'].shape[-1] == 0: continue
-				SimDom = np.asfortranarray([species.Args['leftX']+wind['AbsorbLayer'],species.Args['rightX'],\
-				  0.0, species.Args['upperR']**2])
+		if 'AbsorbLayer' not in wind: return
+		for species in self.Particles:
+			if species.Data['coords'].shape[-1] == 0: continue
+			SimDom = np.asfortranarray([species.Args['leftX']+0.75*wind['AbsorbLayer'],species.Args['rightX'],\
+			  0.0, species.Args['upperR']**2])
 
-				if 'Xchunked' in species.Configs and 'NoSorting' not in wind['Features']:
-					index2stay,species.chunks,go_out  = chimera.chunk_coords_boundaries(species.Data['coords'],SimDom,\
-					  species.Args['Xgrid'],species.Configs['Xchunked'][0])
-					index2stay = index2stay.argsort()[go_out:]
-					num2stay = index2stay.shape[0]
-				else:
-					index2stay,num2stay = chimera.sortpartsout(species.Data['coords'],SimDom)
-					index2stay = index2stay[:num2stay]
+			if 'Xchunked' in species.Configs and 'NoSorting' not in wind['Features']:
+				index2stay,species.chunks,go_out  = chimera.chunk_coords_boundaries(species.Data['coords'],SimDom,\
+				  species.Args['Xgrid'],species.Configs['Xchunked'][0])
+				index2stay = index2stay.argsort()[go_out:]
+				num2stay = index2stay.shape[0]
+			else:
+				index2stay,num2stay = chimera.sortpartsout(species.Data['coords'],SimDom)
+				index2stay = index2stay[:num2stay]
 
-				species.Data['coords'] = chimera.align_data_vec(species.Data['coords'],index2stay)
-				species.Data['coords_halfstep'] = chimera.align_data_vec(species.Data['coords_halfstep'],index2stay)
-				species.Data['momenta'] = chimera.align_data_vec(species.Data['momenta'],index2stay)
-				species.Data['weights'] = chimera.align_data_scl(species.Data['weights'],index2stay)
+			species.Data['coords'] = chimera.align_data_vec(species.Data['coords'],index2stay)
+			species.Data['coords_halfstep'] = chimera.align_data_vec(species.Data['coords_halfstep'],index2stay)
+			species.Data['momenta'] = chimera.align_data_vec(species.Data['momenta'],index2stay)
+			species.Data['weights'] = chimera.align_data_scl(species.Data['weights'],index2stay)
 
-				species.Data['coords'].resize((3,num2stay), refcheck=False)
-				species.Data['coords_halfstep'].resize((3,num2stay), refcheck=False)
-				species.Data['momenta'].resize((3,num2stay), refcheck=False)
-				species.Data['weights'].resize((num2stay,), refcheck=False)
+			species.Data['coords'].resize((3,num2stay), refcheck=False)
+			species.Data['coords_halfstep'].resize((3,num2stay), refcheck=False)
+			species.Data['momenta'].resize((3,num2stay), refcheck=False)
+			species.Data['weights'].resize((num2stay,), refcheck=False)
 
 	def postframe_corr(self,wind):
 		if 'AbsorbLayer' or 'AddPlasma' in wind:
@@ -228,9 +226,10 @@ class ChimeraRun():
 	def frame_act(self,istep,act='stage1'):
 		for wind in self.MovingFrames:
 			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: continue
+			if act=='stage1': self.damp_fields(wind)
 			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: continue
 			if act=='stage1':
-				self.damp_fields(wind)
+#				self.damp_fields(wind)
 				self.move_frame(wind)
 				self.add_plasma(wind)
 				self.damp_plasma(wind)
