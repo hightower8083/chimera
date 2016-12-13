@@ -34,6 +34,7 @@ class ChimeraRun():
 			solver.Args['damp_profile'] = np.ones(solver.Args['Nx'])
 			for wind in self.MovingFrames:
 				if 'AbsorbLayer' not in wind: continue
+				if wind['AbsorbLayer']<=0: continue
 				solver.Args['damp_profile'] *= solver.get_damp_profile(wind['AbsorbLayer'])
 
 	def make_halfstep(self):
@@ -42,9 +43,8 @@ class ChimeraRun():
 		self.project_current()
 		self.project_density()
 		for solver in self.Solvers:
-			for species in self.Particles:
-				solver.maxwell_solver_stat(species.Configs['MomentaMeans'][0])
-				solver.G2B_FBRot()
+			for species in self.Particles: solver.maxwell_solver_stat(species.Configs['MomentaMeans'][0])
+			solver.G2B_FBRot()
 		self.project_fields()
 		for species in self.Particles: species.make_device()
 		for species in self.Particles: species.push_velocs(dt=0.5*species.Configs['TimeStep'])
@@ -83,7 +83,7 @@ class ChimeraRun():
 					solver.field_drift(PXmean)
 				solver.G2B_FBRot()
 			else:
-				for correction in range(4): solver.poiss_corr()		# MULTIPLE POISSON CLEANING
+				solver.poiss_corr()
 				solver.maxwell_solver()
 				solver.G2B_FBRot()
 
@@ -188,7 +188,7 @@ class ChimeraRun():
 	def damp_plasma(self,wind):
 		if 'AbsorbLayer' in wind:
 			for species in self.Particles:
-				if species.Data['coords'].shape[-1] == 0: return
+				if species.Data['coords'].shape[-1] == 0: continue
 				SimDom = np.asfortranarray([species.Args['leftX']+wind['AbsorbLayer'],species.Args['rightX'],\
 				  0.0, species.Args['upperR']**2])
 
@@ -228,7 +228,6 @@ class ChimeraRun():
 	def frame_act(self,istep,act='stage1'):
 		for wind in self.MovingFrames:
 			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: continue
-#			if act=='stage1': self.damp_fields(wind)
 			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: continue
 			if act=='stage1':
 				self.damp_fields(wind)
@@ -245,4 +244,3 @@ class ChimeraRun():
 			if np.mod(istep, species.Configs['Xchunked'][1]+1)!= 0: continue
 			if species.Data['coords'].shape[-1] == 0: continue
 			species.chunk_coords('cntr')
-
