@@ -103,14 +103,20 @@ class Specie:
 		else:
 			coords[-1] *= self.wght0*ProfileFunc(*coords[0:3])
 
-		px = self.Configs['MomentaMeans'][0] + self.Configs['MomentaSpreads'][0]*np.random.randn(Num_loc)
-		py = self.Configs['MomentaMeans'][1] + self.Configs['MomentaSpreads'][1]*np.random.randn(Num_loc)
-		pz = self.Configs['MomentaMeans'][2] + self.Configs['MomentaSpreads'][2]*np.random.randn(Num_loc)
+		if 'FlatSpectrum' in self.Configs['Features']:
+			rand_mom = 2*np.random.rand(3,Num_loc) - 1.0
+		else:
+			rand_mom = np.random.randn(3,Num_loc)
+
+		px = self.Configs['MomentaMeans'][0] + self.Configs['MomentaSpreads'][0]*rand_mom[0]
+		py = self.Configs['MomentaMeans'][1] + self.Configs['MomentaSpreads'][1]*rand_mom[1]
+		pz = self.Configs['MomentaMeans'][2] + self.Configs['MomentaSpreads'][2]*rand_mom[2]
+		momenta = np.vstack((px,py,pz)).astype('d',order='F')
+
 		weights = coords[-1].astype('d',order='F')
 		coords = coords[0:3].astype('d',order='F')
-		momenta = np.vstack((px,py,pz)).astype('d',order='F')
 		return [coords,momenta,weights]
-   
+
 	def add_particles(self,coords,momenta,weights):
 		Num2actl = self.Data['coords'].shape[-1]
 		Num2add = coords.shape[-1]
@@ -129,7 +135,7 @@ class Specie:
 			self.Data['EB'].resize((6,self.Data['coords'].shape[1]), refcheck=False)
 #			self.Data['EB'] = np.zeros((6,self.Data['coords'].shape[1]),order='F')
 		self.Data['EB'][:] = 0.0
-   
+
 	def make_device(self,i_step=0):
 		if 'Still' in self.Configs['Features']: return
 		for device in self.Devices:
@@ -181,6 +187,30 @@ class Specie:
 			self.Data['momenta'] = chimera.align_data_vec(self.Data['momenta'],chnk_ind)
 			self.Data['weights'] = chimera.align_data_scl(self.Data['weights'],chnk_ind)
 
+	def damp_particles(self,wind):
+		if self.Data['coords'].shape[-1] == 0: return
+		SimDom = np.asfortranarray([self.Args['leftX']+wind['AbsorbLayer'],self.Args['rightX'],\
+		  0.0, self.Args['upperR']**2])
+
+		if 'Xchunked' in self.Configs and 'NoSorting' not in wind['Features']:
+			index2stay,self.chunks,go_out  = chimera.chunk_coords_boundaries(self.Data['coords'],SimDom,\
+			  self.Args['Xgrid'],self.Configs['Xchunked'][0])
+			index2stay = index2stay.argsort()[go_out:]
+			num2stay = index2stay.shape[0]
+		else:
+			index2stay,num2stay = chimera.sortpartsout(self.Data['coords'],SimDom)
+			index2stay = index2stay[:num2stay]
+
+		self.Data['coords'] = chimera.align_data_vec(self.Data['coords'],index2stay)
+		self.Data['coords_halfstep'] = chimera.align_data_vec(self.Data['coords_halfstep'],index2stay)
+		self.Data['momenta'] = chimera.align_data_vec(self.Data['momenta'],index2stay)
+		self.Data['weights'] = chimera.align_data_scl(self.Data['weights'],index2stay)
+
+		self.Data['coords'].resize((3,num2stay), refcheck=False)
+		self.Data['coords_halfstep'].resize((3,num2stay), refcheck=False)
+		self.Data['momenta'].resize((3,num2stay), refcheck=False)
+		self.Data['weights'].resize((num2stay,), refcheck=False)
+
 	def get_dens_on_grid(self,Nko=0):
 		VGrid = 2*np.pi*self.Args['dx']*self.Args['dr']*self.Args['Rgrid']
 		VGrid = (VGrid+(self.Args['Rgrid']==0))**-1*(self.Args['Rgrid']>0.0)
@@ -204,9 +234,6 @@ class Specie:
 				coords[1,ip:ip+self.Num_p] = rr_cell*np.cos(oo_cell)
 				coords[2,ip:ip+self.Num_p] = rr_cell*np.sin(oo_cell)
 				coords[3,ip:ip+self.Num_p] = rr_cell
-#				rc = Rgrid[ir]+0.5*self.Args['dr']
-#				if Rgrid[ir]<0: rc = 0.125*self.Args['dr']
-#				coords[3,ip:ip+self.Num_p] = np.ones(self.Num_p)*rc
 				ip += self.Num_p
 		return coords,ip
 
