@@ -14,7 +14,8 @@ class Solver:
 		leftX,rightX, lengthR, dx,dr = self.Configs['Grid']
 		dt = self.Configs['TimeStep']
 
-		print 'Constructing a solver in the cylindric box', (leftX,rightX, lengthR)
+		print 'Constructing a solver in the cylindric box',\
+		  (leftX,rightX, lengthR)
 		print 'spatial and temporal resolutions are', (dx,dr,dt)
 
 		if 'TimeActive' in self.Configs:
@@ -66,11 +67,15 @@ class Solver:
 			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
 			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
 			In = pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
-			DpS2S[:,:,jm] = In.dot(0.5*kr[:,    jm+1 ][None,:]*jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
-			DmS2S[:,:,jm] = In.dot(0.5*kr[:,abs(jm-1)][None,:]*jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
+			DpS2S[:,:,jm] = In.dot(0.5*kr[:,    jm+1 ][None,:]*\
+			  jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
+			DmS2S[:,:,jm] = In.dot(0.5*kr[:,abs(jm-1)][None,:]*\
+			  jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
 		if 'KxShift' in self.Configs:
-			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
-			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
+			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),\
+			  axis=-1)
+			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),\
+			  axis=-1)
 			w  = np.concatenate((w[:,:,Mmin:],w[:,:,:Mmax+1]),axis=-1)
 		w_ext = w.copy()
 ###################
@@ -101,11 +106,16 @@ class Solver:
 			In [:,:,jm] = pinv(Out[:,:,jm])
 
 		if ('KxShift' in self.Configs) and (Nko>0):
-			Out    = np.concatenate((  Out[:,:,Mmin:],  Out[:,:,:Mmax+1]),axis=-1)
-			In     = np.concatenate((   In[:,:,Mmin:],   In[:,:,:Mmax+1]),axis=-1)
-			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),axis=-1)
-			kr_g   = np.concatenate(( kr_g[:,:,Mmin:], kr_g[:,:,:Mmax+1]),axis=-1)
-			kr     = np.concatenate(( kr  [:  ,Mmin:], kr  [:  ,:Mmax+1]),axis=-1)
+			Out    = np.concatenate((  Out[:,:,Mmin:],  Out[:,:,:Mmax+1]),\
+			  axis=-1)
+			In     = np.concatenate((   In[:,:,Mmin:],   In[:,:,:Mmax+1]),\
+			  axis=-1)
+			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),\
+			  axis=-1)
+			kr_g   = np.concatenate(( kr_g[:,:,Mmin:], kr_g[:,:,:Mmax+1]),\
+			  axis=-1)
+			kr     = np.concatenate(( kr  [:  ,Mmin:], kr  [:  ,:Mmax+1]),\
+			  axis=-1)
 
 		VGrid = 2*np.pi*dx*dr*RgridFull
 		VGrid = (VGrid+(RgridFull==0))**-1*(RgridFull>0.0)
@@ -132,10 +142,12 @@ class Solver:
 		In = np.asfortranarray(np.swapaxes(In,0,1))
 		Out = np.asfortranarray(np.swapaxes(Out,0,1))
 
-		self.Args = {'leftX':leftX,'rightX':rightX,'lowerR':(Rgrid*(Rgrid>=0)).min(),\
-		  'upperR':Rgrid.max(),'kx_g':kx_g,'kr_g':kr_g,'w':w,'kx0':kx0,'kx_env':kx_env,\
-		  'Nkr':Nkr,'Nx':Nx,'Nko':Nko, 'Xgrid':Xgrid,'Rgrid':Rgrid,'lengthR':lengthR,\
-		  'dkx':dkx,'dt':dt,'dx':dx,'dr':dr,'kx':kx,'VGrid':VGrid,'RgridFull':RgridFull}
+		self.Args = {'leftX':leftX,'rightX':rightX,\
+		  'lowerR':(Rgrid*(Rgrid>=0)).min(),'upperR':Rgrid.max(),\
+		  'kx_g':kx_g,'kr_g':kr_g,'w':w,'kx0':kx0,'kx_env':kx_env,\
+		  'Nkr':Nkr,'Nx':Nx,'Nko':Nko, 'Xgrid':Xgrid,'Rgrid':Rgrid,\
+		  'lengthR':lengthR,'dkx':dkx,'dt':dt,'dx':dx,'dr':dr,\
+		  'kx':kx,'VGrid':VGrid,'RgridFull':RgridFull}
 
 		self.Args['FBDiff'] = (DpS2S,DmS2S,kx)
 		self.Args['PoissFact'] = np.asfortranarray(w**-2)
@@ -372,6 +384,7 @@ class Solver:
 			DT = -1.j*w*np.sign(kx_g[:,:,None,None] + (kx_g[:,:,None,None]==0))
 
 		EE = self.Data['vec_fb'].copy()
+		EE = self.div_clean(EE)
 		GG  = DT*EE
 
 		self.Data['vec_fb'][:] = np.cos(w*X_focus)*EE + np.sin(w*X_focus)/w*GG
@@ -380,8 +393,6 @@ class Solver:
 		EE *= np.exp(1.j*kx_g[:,:,None,None]*X_focus)
 		GG *= np.exp(1.j*kx_g[:,:,None,None]*X_focus)
 
-		EE = self.div_clean(EE)
-		GG = self.div_clean(GG)
 		self.Data['EG_fb'][:,:,:,:3] += EE
 		self.Data['EG_fb'][:,:,:,3:] += GG
 
