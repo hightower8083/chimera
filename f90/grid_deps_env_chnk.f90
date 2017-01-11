@@ -1,17 +1,20 @@
-subroutine dep_curr_env_chnk(coord,momenta,wghts,curr,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,&
-                    kx0,np,nx,nr,nkO,nchnk)
+subroutine dep_curr_env_chnk(coord,momenta,wghts,curr,IndInChunk,&
+                             guards,leftX,Rgrid,dx_inv,dr_inv,&
+                             kx0,np,nx,nr,nkO,nchnk)
 use omp_lib
 implicit none
 integer, intent(in)       :: np,nx,nr,nkO,nchnk,IndInChunk(0:nchnk),guards
-real (kind=8), intent(in) :: coord(3,np),momenta(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                             dx_inv,dr_inv,kx0
+real (kind=8), intent(in) :: coord(3,np),momenta(3,np),wghts(np)
+real (kind=8), intent(in) :: leftX,Rgrid(0:nr), dx_inv,dr_inv,kx0
 complex(kind=8),intent(inout) :: curr(0:nx,0:nr,-nkO:nkO,3)
 integer                      :: ix,ir,ip,k,l,iO,ichnk,nxleft,chunk_size
 real(kind=8)                 :: xp,yp,zp,rp,gp,S0(0:1,2),veloc(3)
-complex(kind=8)              :: ii=(0.0d0,1.0d0),curr_p(0:1,0:1),phaseO(0:nkO),phase_m,wp
+complex(kind=8)              :: ii=(0.0d0,1.0d0),curr_p(0:1,0:1)
+complex(kind=8)              :: phaseO(0:nkO),phase_m,wp
 complex(kind=8), allocatable :: loc_left(:,:,:,:),loc_right(:,:,:,:)
 
-!f2py intent(in) :: coord,momenta,wghts,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,kx0
+!f2py intent(in) :: coord,momenta,wghts,IndInChunk
+!f2py intent(in) :: guards,leftX,Rgrid,dx_inv,dr_inv,kx0
 !f2py intent(in,out) :: curr
 !f2py intent(hide) :: np,nx,nr,nkO,nchnk
 
@@ -19,8 +22,8 @@ chunk_size=(nx+1)/nchnk
 call omp_set_num_threads(nchnk)
 
 !$omp parallel default(shared) &
-!$omp private(loc_left,loc_right,xp,yp,zp,rp,gp,wp,S0,veloc,curr_p,phaseO,phase_m,&
-!$omp  ix,ir,ip,k,l,iO,ichnk,nxleft)
+!$omp private(loc_left,loc_right,xp,yp,zp,rp,gp,wp,S0,veloc,&
+!$omp  curr_p,phaseO,phase_m,ix,ir,ip,k,l,iO,ichnk,nxleft)
 ichnk = omp_get_thread_num()
 allocate(loc_left(-guards:0,0:nr,-nkO:nkO,3))
 allocate(loc_right(chunk_size:chunk_size+guards,0:nr,-nkO:nkO,3))
@@ -74,17 +77,27 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
     do iO = 0,nkO
       do k = 0,1
         if (ix+k<=0) then
-          loc_left(ix+k,ir:ir+1,iO,l) = loc_left(ix+k,ir:ir+1,iO,l)+phaseO(iO)*veloc(l)*curr_p(k,:)
-          if (iO>0) loc_left(ix+k,ir:ir+1,-iO,l) = loc_left(ix+k,ir:ir+1,-iO,l)+ &
-            CONJG(phaseO(iO))*veloc(l)*curr_p(k,:)
+          loc_left(ix+k,ir:ir+1,iO,l) = loc_left(ix+k,ir:ir+1,iO,l) &
+                                      + phaseO(iO)*veloc(l)*curr_p(k,:)
+          if (iO>0) then
+            loc_left(ix+k,ir:ir+1,-iO,l) = loc_left(ix+k,ir:ir+1,-iO,l) &
+                                     + CONJG(phaseO(iO))*veloc(l)*curr_p(k,:)
+          endif
+
         elseif (ix+k>=chunk_size) then
-          loc_right(ix+k,ir:ir+1,iO,l)=loc_right(ix+k,ir:ir+1,iO,l)+phaseO(iO)*veloc(l)*curr_p(k,:)
-          if (iO>0) loc_right(ix+k,ir:ir+1,-iO,l) = loc_right(ix+k,ir:ir+1,-iO,l)+ &
-            CONJG(phaseO(iO))*veloc(l)*curr_p(k,:)
+          loc_right(ix+k,ir:ir+1,iO,l) = loc_right(ix+k,ir:ir+1,iO,l) &
+                                       + phaseO(iO)*veloc(l)*curr_p(k,:)
+          if (iO>0) then
+            loc_right(ix+k,ir:ir+1,-iO,l) = loc_right(ix+k,ir:ir+1,-iO,l) &
+                                      + CONJG(phaseO(iO))*veloc(l)*curr_p(k,:)
+          endif
         else
-          curr(ix+nxleft+k,ir:ir+1,iO,l)=curr(ix+nxleft+k,ir:ir+1,iO,l)+phaseO(iO)*veloc(l)*curr_p(k,:)
-          if (iO>0) curr(ix+nxleft+k,ir:ir+1,-iO,l) = curr(ix+nxleft+k,ir:ir+1,-iO,l)+ &
-            CONJG(phaseO(iO))*veloc(l)*curr_p(k,:)
+          curr(ix+nxleft+k,ir:ir+1,iO,l) = curr(ix+nxleft+k,ir:ir+1,iO,l) &
+                                         + phaseO(iO)*veloc(l)*curr_p(k,:)
+          if (iO>0) then
+            curr(ix+nxleft+k,ir:ir+1,-iO,l) = curr(ix+nxleft+k,ir:ir+1,-iO,l) &
+                                      + CONJG(phaseO(iO))*veloc(l)*curr_p(k,:)
+          endif
         endif
       enddo
     enddo
@@ -114,20 +127,22 @@ enddo
 
 end subroutine
 
-subroutine dep_dens_env_chnk(coord,wghts,dens,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,&
-                    kx0,np,nx,nr,nkO,nchnk)
+subroutine dep_dens_env_chnk(coord,wghts,dens,IndInChunk,&
+                             guards,leftX,Rgrid,dx_inv,dr_inv,&
+                             kx0,np,nx,nr,nkO,nchnk)
 use omp_lib
 implicit none
 integer, intent(in)        :: np,nx,nr,nkO,nchnk,IndInChunk(0:nchnk),guards
-real (kind=8), intent(in)  :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                              dx_inv,dr_inv,kx0
+real (kind=8), intent(in)  :: coord(3,np),wghts(np)
+real (kind=8), intent(in)  :: leftX,Rgrid(0:nr),dx_inv,dr_inv,kx0
 complex(kind=8),intent(inout):: dens(0:nx,0:nr,-nkO:nkO)
 integer         :: ix,ir,ip,k,iO,ichnk,nxleft,chunk_size
 real(kind=8)    :: xp,yp,zp,rp,S0(0:1,2)
 complex(kind=8) :: ii=(0.0d0,1.0d0),dens_p(0:1,0:1),phaseO(0:nkO),phase_m,wp
 complex(kind=8), allocatable :: loc_left(:,:,:),loc_right(:,:,:)
 
-!f2py intent(in) :: coord,wghts,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,kx0
+!f2py intent(in) :: coord,wghts,IndInChunk,guards,leftX,Rgrid
+!f2py intent(in) :: dx_inv,dr_inv,kx0
 !f2py intent(in,out) :: dens
 !f2py intent(hide) :: np,nx,nr,nkO,nchnk
 
@@ -135,7 +150,8 @@ chunk_size=(nx+1)/nchnk
 call omp_set_num_threads(nchnk)
 
 !$omp parallel default(shared) &
-!$omp private(loc_left,loc_right,xp,yp,zp,rp,wp,S0,dens_p,phaseO,phase_m,ix,ir,ip,k,iO,ichnk,nxleft)
+!$omp private(loc_left,loc_right,xp,yp,zp,rp,wp, &
+!$omp         S0,dens_p,phaseO,phase_m,ix,ir,ip,k,iO,ichnk,nxleft)
 ichnk = omp_get_thread_num()
 allocate(loc_left(-guards:0,0:nr,-nkO:nkO))
 allocate(loc_right(chunk_size:chunk_size+guards,0:nr,-nkO:nkO))
@@ -184,17 +200,26 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
   do iO = 0,nkO
     do k = 0,1
       if (ix+k<=0) then
-        loc_left(ix+k,ir:ir+1,iO) = loc_left(ix+k,ir:ir+1,iO)+phaseO(iO)*dens_p(k,:)
-        if (iO>0) loc_left(ix+k,ir:ir+1,-iO) = loc_left(ix+k,ir:ir+1,-iO)+ &
-          CONJG(phaseO(iO))*dens_p(k,:)
+        loc_left(ix+k,ir:ir+1,iO) = loc_left(ix+k,ir:ir+1,iO) &
+                                  + phaseO(iO)*dens_p(k,:)
+        if (iO>0) then
+          loc_left(ix+k,ir:ir+1,-iO) = loc_left(ix+k,ir:ir+1,-iO) &
+                                     + CONJG(phaseO(iO))*dens_p(k,:)
+        endif
       elseif (ix+k>=chunk_size) then
-        loc_right(ix+k,ir:ir+1,iO)=loc_right(ix+k,ir:ir+1,iO)+phaseO(iO)*dens_p(k,:)
-        if (iO>0) loc_right(ix+k,ir:ir+1,-iO) = loc_right(ix+k,ir:ir+1,-iO)+ &
-          CONJG(phaseO(iO))*dens_p(k,:)
+        loc_right(ix+k,ir:ir+1,iO) = loc_right(ix+k,ir:ir+1,iO) &
+                                   + phaseO(iO)*dens_p(k,:)
+        if (iO>0) then 
+          loc_right(ix+k,ir:ir+1,-iO) = loc_right(ix+k,ir:ir+1,-iO) &
+                                      + CONJG(phaseO(iO))*dens_p(k,:)
+        endif
       else
-        dens(ix+nxleft+k,ir:ir+1,iO)=dens(ix+nxleft+k,ir:ir+1,iO)+phaseO(iO)*dens_p(k,:)
-        if (iO>0) dens(ix+nxleft+k,ir:ir+1,-iO) = dens(ix+nxleft+k,ir:ir+1,-iO)+ &
-          CONJG(phaseO(iO))*dens_p(k,:)
+        dens(ix+nxleft+k,ir:ir+1,iO) = dens(ix+nxleft+k,ir:ir+1,iO) &
+                                     + phaseO(iO)*dens_p(k,:)
+        if (iO>0) then
+          dens(ix+nxleft+k,ir:ir+1,-iO) = dens(ix+nxleft+k,ir:ir+1,-iO) &
+                                        + CONJG(phaseO(iO))*dens_p(k,:)
+        endif
       endif
     enddo
   enddo

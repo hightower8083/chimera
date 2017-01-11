@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.special import jn_zeros,jn,j1
 import chimera.moduls.fimera as chimera
-from numpy.linalg import pinv
+from scipy.constants import m_e,c, elementary_charge, epsilon_0
+from numpy.linalg import inv as inv
 
-poiss_corr_num = 4
+poiss_corr_num = 1
 
 class Solver:
 	def __init__(self,solver_in):
@@ -13,10 +14,13 @@ class Solver:
 		Nko = self.Configs['MaxAzimuthMode']
 		leftX,rightX, lengthR, dx,dr = self.Configs['Grid']
 		dt = self.Configs['TimeStep']
+		self.Configs['TimeStepInv'] = 1.0/dt
 
-		print 'Constructing a solver in the cylindric box',\
-		  (leftX,rightX, lengthR)
-		print 'spatial and temporal resolutions are', (dx,dr,dt)
+		print 'Constructing solver with cylindric boundaries: ',\
+		  'left={0:.3g}, right={1:.3g}, radius={2:.3g}'.format(\
+			  leftX,rightX, lengthR)
+		print 'Spatial and temporal resolutions: ',\
+			 'dx={0:.3g}, dr={1:.3g}, dt={2:.3g}'.format(dx,dr,dt)
 
 		if 'TimeActive' in self.Configs:
 			self.TimeInterval = self.Configs['TimeActive']
@@ -26,7 +30,8 @@ class Solver:
 
 		if 'KxShift' in self.Configs:
 			kx0 = 2*np.pi*self.Configs['KxShift']
-			print 'Spectral domain is shifted to', self.Configs['KxShift']
+			print 'Spectral domain is shifted to {:.3e}'.\
+			  format(self.Configs['KxShift'])
 		else:
 			kx0 = 0.0
 
@@ -66,18 +71,14 @@ class Solver:
 		for jm in np.arange(Mmin,Mmax+1):
 			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
 			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
-			In = pinv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
+			In = inv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
 			DpS2S[:,:,jm] = In.dot(0.5*kr[:,    jm+1 ][None,:]*\
 			  jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
 			DmS2S[:,:,jm] = In.dot(0.5*kr[:,abs(jm-1)][None,:]*\
 			  jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
 		if 'KxShift' in self.Configs:
-			DpS2S  = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),\
-			  axis=-1)
-			DmS2S  = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),\
-			  axis=-1)
-			w  = np.concatenate((w[:,:,Mmin:],w[:,:,:Mmax+1]),axis=-1)
-		w_ext = w.copy()
+			DpS2S = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
+			DmS2S = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
 ###################
 
 		if 'KxShift' in self.Configs:
@@ -87,7 +88,7 @@ class Solver:
 			Mmin    , Mmax    , Mtot     = 0, Nko   , Nko+1
 			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
 
-		print 'Grid resolutions are ', (Nx,Nkr,Mtot)
+		print 'Grid resolutions are ({0:d},{1:d},{2:d})'.format(Nx,Nkr,Mtot)
 
 		kr   = np.zeros((Nkr,Mtot_ext))
 		kr_g = np.zeros((Nx,Nkr,Mtot ))
@@ -103,19 +104,14 @@ class Solver:
 
 		for jm in np.arange(Mmin,Mmax+1):
 			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
-			In [:,:,jm] = pinv(Out[:,:,jm])
+			In [:,:,jm] = inv(Out[:,:,jm])
 
 		if ('KxShift' in self.Configs) and (Nko>0):
-			Out    = np.concatenate((  Out[:,:,Mmin:],  Out[:,:,:Mmax+1]),\
-			  axis=-1)
-			In     = np.concatenate((   In[:,:,Mmin:],   In[:,:,:Mmax+1]),\
-			  axis=-1)
-			w      = np.concatenate((    w[:,:,Mmin:],    w[:,:,:Mmax+1]),\
-			  axis=-1)
-			kr_g   = np.concatenate(( kr_g[:,:,Mmin:], kr_g[:,:,:Mmax+1]),\
-			  axis=-1)
-			kr     = np.concatenate(( kr  [:  ,Mmin:], kr  [:  ,:Mmax+1]),\
-			  axis=-1)
+			Out = np.concatenate((Out[:,:,Mmin:],Out[:,:,:Mmax+1]), axis=-1)
+			In = np.concatenate((In[:,:,Mmin:], In[:,:,:Mmax+1]), axis=-1)
+			w = np.concatenate((w[:,:,Mmin:],w[:,:,:Mmax+1]), axis=-1)
+			kr_g = np.concatenate((kr_g[:,:,Mmin:],kr_g[:,:,:Mmax+1]),axis=-1)
+			kr = np.concatenate((kr[:  ,Mmin:], kr[:,:Mmax+1]),axis=-1)
 
 		VGrid = 2*np.pi*dx*dr*RgridFull
 		VGrid = (VGrid+(RgridFull==0))**-1*(RgridFull>0.0)
@@ -127,7 +123,7 @@ class Solver:
 			InCurr = InCurr[:,:indRcut-1]
 			OutFull=  Out.copy()
 			Out    =  Out[:indRcut-1]
-			print 'Rgrid is cut after ',self.Configs['Rcut']
+			print 'Rgrid is cut after {:.5g}'.format(self.Configs['Rcut'])
 		else:
 			OutFull =  Out
 			Rgrid  = RgridFull
@@ -151,15 +147,17 @@ class Solver:
 
 		self.Args['FBDiff'] = (DpS2S,DmS2S,kx)
 		self.Args['PoissFact'] = np.asfortranarray(w**-2)
-		self.Args['PoissFact_ext'] = np.asfortranarray(w_ext**-2)
 
-		self.Args['EnergyFact'] = 0.5*0.511e6*1.6022e-19/2.818e-13*lengthR**2/dkx*\
-		  jn(np.abs(np.arange(Mmin,Mmax+1)[None,None,:])+1,kr_g*lengthR)**2
+		self.Args['EnergyFact'] = 0.5e-2*(m_e*c**2)**2/elementary_charge**2 \
+		  * 4*np.pi*epsilon_0*lengthR**2/dkx \
+		  * jn(np.abs(np.arange(Mmin,Mmax+1)[None,None,:])+1,kr_g*lengthR)**2
 
 		if 'KxShift' in self.Configs:
 			cutafter = 0.8
-			fu_bandpass = lambda x : (x<cutafter)+(x>=cutafter)*np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
-			filt_bandpass = fu_bandpass(np.abs(kx_env)/np.abs(kx_env.max()))[:,None,None]
+			fu_bandpass = lambda x : (x<cutafter)+(x>=cutafter)\
+			  * np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
+			filt_bandpass = fu_bandpass(np.abs(kx_env) \
+			  / np.abs(kx_env.max()))[:,None,None]
 			filt_antialias = np.ones_like(filt_bandpass)
 
 			if 'NoAntiEcho' not in self.Configs['Features']:
@@ -169,15 +167,18 @@ class Solver:
 
 				for cellecho in cell_echos:
 					if cellecho>full_band[0] and cellecho<full_band[1]:
-						print 'possible grid echo is detected at', cellecho/abs(full_band).max()
+						ech = cellecho/abs(full_band).max()
+						print 'possible grid echo at {0:.5g}'.format(ech)
 						if abs(cellecho)/abs(full_band).max()>0.4:
-							print 'will correct', cellecho/abs(full_band).max()
-							filt_antialias *= fu_antialias( kx/kx0-1, cellecho  )[:,None,None]
+							print 'will correct {0:.5g}'.format(ech)
+							filt_antialias *= fu_antialias(\
+							  kx/kx0-1,cellecho)[:,None,None]
 						else:
-							print 'echo is close to resonance; no correction will be performed'
+							print 'no correction: too close to resonance'
 
 			self.Args['DepFact'] = np.asfortranarray((2*np.pi)**2/Nx*\
-			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass*filt_antialias)
+			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass\
+			  * filt_antialias)
 			self.Args['DepProj']   = (Rgrid,1./dx,1./dr,kx0)
 			self.Args['FBCurrIn']  = (kx_env,InCurr)
 			self.Args['FBIn']      = (kx_env,In)
@@ -206,8 +207,9 @@ class Solver:
 		self.Data['J_fb']  = np.zeros_like(self.Data['vec_fb'])
 		self.Data['B_fb']  = np.zeros((Nx,Nkr,Mtot,3),dtype='complex',order='F')
 
-		if 'SpaceCharge' in self.Configs['Features'] or 'StaticKick' in self.Configs['Features']:
-			print 'Space charge is added'
+		if 'SpaceCharge' in self.Configs['Features'] \
+		  or 'StaticKick' in self.Configs['Features']:
+			print 'Charge density will be considered'
 			self.Data['Rho']        = np.zeros_like(self.Data['scl_spc'])
 			self.Data['Rho_fb']     = np.zeros_like(self.Data['scl_fb'])
 			self.Data['gradRho_fb_nxt'] = np.zeros_like(self.Data['vec_fb'])
@@ -221,7 +223,8 @@ class Solver:
 			self.PSATD_coeffs(self.Configs['CoPropagative'])
 		else:
 			self.PSATD_coeffs()
-		if 'NoPoissonCorrection' in self.Configs['Features']:	print 'Poisson correction will not be performed'
+		if 'NoPoissonCorrection' in self.Configs['Features']:
+			print 'Poisson correction will not be performed'
 
 	def PSATD_coeffs(self,beta=1):
 		kx_g,w = self.Args['kx_g'],self.Args['w']
@@ -242,41 +245,57 @@ class Solver:
 		self.Data['PSATD_G'][:,:,:,1] = np.cos(dt*w)
 
 		if 'KxShift' in self.Configs:
-			self.Data['PSATD_E'][:,:,:,2] = np.exp(-0.5j*kx_g*dt)*1j*kx_g/(w**2-kx_g**2)*\
-			  (1.0-np.exp(1j*kx_g*dt)*(w/(1j*kx_g)*np.sin(dt*w)+np.cos(dt*w)))
-			self.Data['PSATD_G'][:,:,:,2]  = np.exp(-0.5j*kx_g*dt)*w**2/(w**2-kx_g**2)*\
-			  (1.0+np.exp(1j*kx_g*dt)*(1j*kx_g/w*np.sin(dt*w)-np.cos(dt*w)))
+			self.Data['PSATD_E'][:,:,:,2] = np.exp(-0.5j*kx_g*dt)*1j*kx_g \
+			  / (w**2-kx_g**2)*(1.0-np.exp(1j*kx_g*dt) \
+			  * (w/(1j*kx_g)*np.sin(dt*w)+np.cos(dt*w)))
+			self.Data['PSATD_G'][:,:,:,2]  = np.exp(-0.5j*kx_g*dt)*w**2 \
+			  / (w**2-kx_g**2)*(1.0+np.exp(1j*kx_g*dt) \
+			  * (1j*kx_g/w*np.sin(dt*w)-np.cos(dt*w)))
 		else:
 			self.Data['PSATD_E'][:,:,:,2] = -np.sin(dt*w)/w
 			self.Data['PSATD_G'][:,:,:,2] = 1-np.cos(dt*w)
 
 		if 'SpaceCharge' in self.Configs['Features']:
-			self.Data['PSATD_E'][:,:,:,3] = (dt*w*np.cos(dt*w)-np.sin(dt*w))/w**3/dt
+			self.Data['PSATD_E'][:,:,:,3] = (dt*w*np.cos(dt*w)-np.sin(dt*w))\
+			  / w**3/dt
 			self.Data['PSATD_E'][:,:,:,4] = (np.sin(dt*w)-dt*w)/w**3/dt
-			self.Data['PSATD_G'][:,:,:,3] = (1-np.cos(dt*w)-dt*w*np.sin(dt*w))/w**2/dt
+			self.Data['PSATD_G'][:,:,:,3] = (1-np.cos(dt*w)-dt*w*np.sin(dt*w))\
+			  / w**2/dt
 			self.Data['PSATD_G'][:,:,:,4] = (np.cos(dt*w)-1)/w**2/dt
 
 	def maxwell_solver(self):
 		if 'SpaceCharge' in self.Configs['Features']:
-			self.Data['EG_fb'] = chimera.maxwell_push_with_spchrg(self.Data['EG_fb'],self.Data['J_fb'],self.Data['gradRho_fb_prv'],\
-			  self.Data['gradRho_fb_nxt'],self.Data['PSATD_E'],self.Data['PSATD_G'])
+			self.Data['EG_fb'] = chimera.maxwell_push_with_spchrg(\
+			  self.Data['EG_fb'],self.Data['J_fb'],\
+			  self.Data['gradRho_fb_prv'],self.Data['gradRho_fb_nxt'],\
+			  self.Data['PSATD_E'],self.Data['PSATD_G'])
 		else:
-			self.Data['EG_fb'] = chimera.maxwell_push_wo_spchrg(self.Data['EG_fb'],self.Data['J_fb'],self.Data['PSATD_E'],self.Data['PSATD_G'])
+			self.Data['EG_fb'] = chimera.maxwell_push_wo_spchrg(\
+			  self.Data['EG_fb'],self.Data['J_fb'],\
+			  self.Data['PSATD_E'],self.Data['PSATD_G'])
 
 	def poiss_corr(self):
 		if 'NoPoissonCorrection' in self.Configs['Features']: return
 		for corr in range(poiss_corr_num):
 			self.Data['vec_fb'][:] = self.Data['J_fb']
-			self.FBGradPoissDiv()
+			self.FBGradDiv()
 			if 'SpaceCharge' in self.Configs['Features']:
-				self.Data['J_fb'] = chimera.poiss_corr_with_spchrg(self.Data['J_fb'],self.Data['vec_fb'],\
-				  self.Data['gradRho_fb_prv'], self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1./self.Configs['TimeStep'])
+				self.Data['J_fb'] = chimera.poiss_corr(\
+				  self.Data['J_fb'], self.Data['vec_fb'],\
+				  self.Data['gradRho_fb_prv'], \
+				  self.Data['gradRho_fb_nxt'], \
+				  self.Configs['TimeStepInv'],\
+				  self.Args['PoissFact'])
 			else:
-				self.Data['J_fb'] = chimera.omp_add_vec(self.Data['J_fb'],self.Data['vec_fb'])
-		self.divG_clean()
+				self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'],\
+				  self.Args['PoissFact'])
+				self.Data['J_fb'] = chimera.omp_add_vec(self.Data['J_fb'],\
+				  self.Data['vec_fb'])
+#		self.divG_clean()
 
 	def maxwell_solver_stat(self,px0):
-		if 'SpaceCharge' not in self.Configs['Features'] and 'StaticKick' not in self.Configs['Features']: return
+		if 'SpaceCharge' not in self.Configs['Features'] \
+		  and 'StaticKick' not in self.Configs['Features']: return
 		beta0 = px0/np.sqrt(1+px0**2)
 		kx_g,w = self.Args['kx_g'],self.Args['w']
 		CPSATD1 = np.zeros(w.shape+(2,),dtype='complex',order='F')
@@ -287,36 +306,44 @@ class Solver:
 		CPSATD1[:,:,:,1] = -1./(w**2-kx_g**2)
 		CPSATD2[:,:,:,0] = w**2/(w**2-kx_g**2)
 		CPSATD2[:,:,:,1] = 1.j*kx_g/(w**2-kx_g**2)
-		self.Data['EG_fb'] = chimera.maxwell_init_push(self.Data['EG_fb'],self.Data['J_fb'],self.Data['gradRho_fb_nxt'],CPSATD1,CPSATD2)
+		self.Data['EG_fb'] = chimera.maxwell_init_push(\
+		  self.Data['EG_fb'],self.Data['J_fb'],\
+		  self.Data['gradRho_fb_nxt'],CPSATD1,CPSATD2)
 
 	def poiss_corr_stat(self,px0):
 		if 'NoPoissonCorrection' in self.Configs['Features']: return
-		beta0 = px0/np.sqrt(1+px0**2)
-		kx_g = beta0*self.Args['kx_g'][:,:,None,None]
+		DT = -1.j*px0/np.sqrt(1+px0**2)*self.Args['kx']
 		self.Data['vec_fb'][:] = self.Data['J_fb']
-		self.FBGradPoissDiv()
-		self.Data['J_fb'] = chimera.poiss_corr_with_spchrg(self.Data['J_fb'],self.Data['vec_fb'],\
-		  np.zeros_like(self.Data['gradRho_fb_nxt']),-1.j*kx_g*self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1.)
+		self.FBGradDiv()
+
+		self.Data['J_fb'] = chimera.poiss_corr(\
+		  self.Data['J_fb'], self.Data['vec_fb'],\
+		  self.Data['gradRho_fb_nxt'], \
+		  DT, self.Args['PoissFact'])
 
 	def field_drift(self,px0):
-		beta0 = px0/np.sqrt(1+px0**2)
-		kx_g = beta0*self.Args['kx_g'][:,:,None,None]
-		self.Data['EG_fb'] *= np.exp(-0.5j*kx_g*self.Configs['TimeStep'])
+		self.Data['EG_fb'] = chimera.field_drift(self.Data['EG_fb'],\
+		  self.Args['kx'], px0/np.sqrt(1+px0**2), self.Configs['TimeStep'])
 
 	def fb_curr_in(self):
-		self.Data['J_fb'] = chimera.fb_vec_in(self.Data['J_fb'],self.Data['J'],self.Args['leftX'],*self.Args['FBCurrIn'])
-		self.Data['J_fb'] = chimera.omp_mult_vec(self.Data['J_fb'],self.Args['DepFact'])
+		self.Data['J_fb'] = chimera.fb_vec_in(self.Data['J_fb'],self.Data['J'],\
+		  self.Args['leftX'],*self.Args['FBCurrIn'])
+		self.Data['J_fb'] = chimera.omp_mult_vec(self.Data['J_fb'],\
+		  self.Args['DepFact'])
 
 	def fb_dens_in(self):
-		self.Data['Rho_fb'] = chimera.fb_scl_in(self.Data['Rho_fb'],self.Data['Rho'],self.Args['leftX'],*self.Args['FBCurrIn'])
-		self.Data['Rho_fb'] = chimera.omp_mult_scl(self.Data['Rho_fb'],self.Args['DepFact'])
+		self.Data['Rho_fb'] = chimera.fb_scl_in(self.Data['Rho_fb'],
+		  self.Data['Rho'],self.Args['leftX'],*self.Args['FBCurrIn'])
+		self.Data['Rho_fb'] = chimera.omp_mult_scl(self.Data['Rho_fb'],\
+		  self.Args['DepFact'])
 
 	def fb_scl_spc_in(self):
-		self.Data['scl_fb'] = chimera.fb_scl_in(self.Data['scl_fb'],self.Data['scl_spc'],self.Args['leftX'],*self.Args['FBIn'])
+		self.Data['scl_fb'] = chimera.fb_scl_in(self.Data['scl_fb'],\
+		  self.Data['scl_spc'],self.Args['leftX'],*self.Args['FBIn'])
 
 	def fb_fld_out(self):
-		self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'],self.Data['B_fb'],\
-		  self.Args['leftX'],*self.Args['FBout'])
+		self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'],\
+		  self.Data['B_fb'],self.Args['leftX'],*self.Args['FBout'])
 		if 'KxShift' in self.Configs:
 			self.Data['EB'] = chimera.eb_corr_axis_env(self.Data['EB'])
 		else:
@@ -324,40 +351,57 @@ class Solver:
 
 	def FBGrad(self):
 		if 'KxShift' in self.Configs:
-			self.Data['vec_fb'] = chimera.fb_grad_env(self.Data['vec_fb'],self.Data['scl_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_grad_env(self.Data['vec_fb'],\
+			  self.Data['scl_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['vec_fb'] = chimera.fb_grad(self.Data['vec_fb'],self.Data['scl_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_grad(self.Data['vec_fb'],\
+			  self.Data['scl_fb'],*self.Args['FBDiff'])
 
 	def FBDiv(self):
 		if 'KxShift' in self.Configs:
-			self.Data['scl_fb'] = chimera.fb_div_env(self.Data['scl_fb'],self.Data['vec_fb'],*self.Args['FBDiff'])
+			self.Data['scl_fb'] = chimera.fb_div_env(self.Data['scl_fb'],\
+			  self.Data['vec_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['scl_fb'] = chimera.fb_div(self.Data['scl_fb'],self.Data['vec_fb'],*self.Args['FBDiff'])
+			self.Data['scl_fb'] = chimera.fb_div(self.Data['scl_fb'],\
+			  self.Data['vec_fb'],*self.Args['FBDiff'])
 
 	def FBGradDiv(self):
 		if 'KxShift' in self.Configs:
-			self.Data['vec_fb'] = chimera.fb_graddiv_env(self.Data['vec_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_graddiv_env(\
+			  self.Data['vec_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['vec_fb'] = chimera.fb_graddiv(self.Data['vec_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_graddiv(\
+			  self.Data['vec_fb'],*self.Args['FBDiff'])
 
 	def FBGradPoissDiv(self):
 		if 'KxShift' in self.Configs:
-			self.Data['vec_fb'] = chimera.fb_gradpoissdiv_env(self.Data['vec_fb'], self.Args['PoissFact_ext'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_gradpoissdiv_env(\
+			  self.Data['vec_fb'], self.Args['PoissFact_ext'],\
+			  *self.Args['FBDiff'])
 		else:
-			self.Data['vec_fb'] = chimera.fb_gradpoissdiv(self.Data['vec_fb'],self.Args['PoissFact_ext'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_gradpoissdiv(\
+			  self.Data['vec_fb'],self.Args['PoissFact_ext'],\
+			  *self.Args['FBDiff'])
 
 	def FBGradDens(self):
 		if 'KxShift' in self.Configs:
-			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
+			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(\
+			  self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],\
+			  *self.Args['FBDiff'])
 		else:
-			self.Data['gradRho_fb_nxt'] = chimera.fb_grad(self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],*self.Args['FBDiff'])
+			self.Data['gradRho_fb_nxt'] = chimera.fb_grad(\
+			  self.Data['gradRho_fb_nxt'],self.Data['Rho_fb'],\
+			  *self.Args['FBDiff'])
 
 	def G2B_FBRot(self):
 		if 'KxShift' in self.Configs:
-			self.Data['B_fb'] = chimera.fb_rot_env(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
+			self.Data['B_fb'] = chimera.fb_rot_env(self.Data['B_fb'],\
+			  self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
 		else:
-			self.Data['B_fb'] = chimera.fb_rot(self.Data['B_fb'], self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
-		self.Data['B_fb'] = chimera.omp_mult_vec(self.Data['B_fb'], self.Args['PoissFact'])
+			self.Data['B_fb'] = chimera.fb_rot(self.Data['B_fb'],\
+			  self.Data['EG_fb'][:,:,:,3:],*self.Args['FBDiff'])
+		self.Data['B_fb'] = chimera.omp_mult_vec(\
+		  self.Data['B_fb'], self.Args['PoissFact'])
 
 	def add_gauss_beam(self,S):
 		k0 = 2*np.pi*S['k0']
@@ -367,19 +411,24 @@ class Solver:
 		w = w[:,:,:,None]
 
 		if 'KxShift' in self.Configs:
-			e_s0 = a0*0.5*(np.pi)**0.5*S['Lx']*S['LR']**2*self.Args['dkx']/self.Args['lengthR']**2
-			self.Data['vec_fb'][:,:,self.Args['Nko'],2] = e_s0/j1(self.Args['lengthR']*kr_g[:,:,self.Args['Nko']])**2*\
-			  np.exp(-1j*kx_g*S['x0'])*\
-			  np.exp(-0.25*(kx_g-k0)**2*S['Lx']**2 -0.25*kr_g[:,:,self.Args['Nko']]**2*S['LR']**2 )
+			e_s0 = a0*0.5*(np.pi)**0.5*S['Lx']*S['LR']**2*self.Args['dkx'] \
+			  / self.Args['lengthR']**2
+			self.Data['vec_fb'][:,:,self.Args['Nko'],2] = e_s0 \
+			  / j1(self.Args['lengthR']*kr_g[:,:,self.Args['Nko']])**2*\
+			  np.exp(-1j*kx_g*S['x0'])*np.exp(-0.25*(kx_g-k0)**2*S['Lx']**2 \
+			  - 0.25*kr_g[:,:,self.Args['Nko']]**2*S['LR']**2 )
 			DT = -1.j*w
 		else:
-			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# sin laser phase
+			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# sin phase
 			self.Data['scl_spc'][:,:,0] = a0*np.sin(k0*(Xgrid[:,None]-S['x0']))*\
-			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2-Rgrid[None,:]**2/S['LR']**2) *\
-			  (abs(Xgrid[:,None]-S['x0'])< 3.5*S['Lx'])*(abs(Rgrid[None,:])< 3.5*S['LR'])
+			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2 \
+			  - Rgrid[None,:]**2/S['LR']**2)\
+			  * (abs(Xgrid[:,None]-S['x0'])< 3.5*S['Lx'])\
+			  * (abs(Rgrid[None,:])< 3.5*S['LR'])
 			self.Data['scl_spc'][:,0,0] = 0.0
 			self.fb_scl_spc_in()
-			self.Data['vec_fb'][:,:,:,2] = self.Data['scl_fb']/np.float(self.Args['Nx'])
+			self.Data['vec_fb'][:,:,:,2] = \
+			  self.Data['scl_fb']/np.float(self.Args['Nx'])
 
 			DT = -1.j*w*np.sign(kx_g[:,:,None,None] + (kx_g[:,:,None,None]==0))
 
@@ -415,16 +464,22 @@ class Solver:
 		return filt
 
 	def damp_field(self):
-		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],\
-		  self.Args['kx'],self.Args['damp_profile'])
-		self.Data['EG_fb'][:,:,:,3:] = chimera.fb_filtr(self.Data['EG_fb'][:,:,:,3:],self.Args['leftX'],\
-		  self.Args['kx'],self.Args['damp_profile'])
+		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(\
+		  self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],self.Args['kx'],\
+		  self.Args['damp_profile'])
+		self.Data['EG_fb'][:,:,:,3:] = chimera.fb_filtr(\
+		  self.Data['EG_fb'][:,:,:,3:],self.Args['leftX'],self.Args['kx'],\
+		  self.Args['damp_profile'])
 
 	def FBRot(self):
 		if 'KxShift' in self.Configs:
-			self.Data['vec_fb'] = chimera.fb_rot_env(np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_rot_env(\
+			  np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],\
+			  *self.Args['FBDiff'])
 		else:
-			self.Data['vec_fb'] = chimera.fb_rot(np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],*self.Args['FBDiff'])
+			self.Data['vec_fb'] = chimera.fb_rot(\
+			  np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],\
+			  *self.Args['FBDiff'])
 
 	def test_calibration(self):
 		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,:3]
@@ -440,51 +495,33 @@ class Solver:
 
 	def divG_clean(self):
 		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
-		self.FBGradPoissDiv()
-		self.Data['EG_fb'][:,:,:,3:] = chimera.omp_add_vec(self.Data['EG_fb'][:,:,:,3:],self.Data['vec_fb'])
+		self.FBGradDiv()
+		self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'],\
+		  self.Args['PoissFact'])
+		self.Data['EG_fb'][:,:,:,3:] = chimera.omp_add_vec(\
+		  self.Data['EG_fb'][:,:,:,3:],self.Data['vec_fb'])
 
 	def div_clean(self,vec):
 		self.Data['vec_fb'][:] = vec
-		self.FBGradPoissDiv()
+		self.FBGradDiv()
+		self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'],\
+		  self.Args['PoissFact'])
 		vec = chimera.omp_add_vec(vec,self.Data['vec_fb'])
 		return vec
 
 	def divB_clean(self):
 		self.Data['vec_fb'][:] = self.Data['B_fb']
-		self.FBGradPoissDiv()
-		self.Data['B_fb'] = chimera.omp_add_vec(self.Data['B_fb'],self.Data['vec_fb'])
+		self.FBGradDiv()
+		self.Data['B_fb'] = chimera.omp_add_vec(self.Data['B_fb'],\
+		  self.Data['vec_fb'])
 
 #####################################################################
-	def div_clean_old(self,vec):
-		self.Data['vec_fb'][:] = vec
-		self.FBGradDiv()
-		vec = chimera.poiss_corr_wo_spchrg(vec,self.Data['vec_fb'],self.Args['PoissFact'])
-		return vec
-
-	def divG_clean_old(self):
-		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
-		self.FBGradDiv()
-		self.Data['EG_fb'][:,:,:,3:] = chimera.poiss_corr_wo_spchrg(self.Data['EG_fb'][:,:,:,3:],self.Data['vec_fb'],self.Args['PoissFact'])
-
-	def poiss_corr_old(self):
-		if 'NoPoissonCorrection' in self.Configs['Features']: return
-		for corr in range(poiss_corr_num):
-			self.Data['vec_fb'][:] = self.Data['J_fb']
-			self.FBGradDiv()
-			if 'SpaceCharge' in self.Configs['Features']:
-				self.Data['J_fb'] = chimera.poiss_corr_with_spchrg_old(self.Data['J_fb'],self.Data['vec_fb'],\
-				  self.Data['gradRho_fb_prv'], self.Data['gradRho_fb_nxt'],self.Args['PoissFact'],1./self.Configs['TimeStep'])
-			else:
-				self.Data['J_fb'] = chimera.poiss_corr_wo_spchrg(self.Data['J_fb'],self.Data['vec_fb'],self.Args['PoissFact'])
-
-	def divB_clean_old(self):
-		self.Data['vec_fb'][:] = self.Data['B_fb']
-		self.FBGradDiv()
-		self.Data['B_fb'] = chimera.poiss_corr_wo_spchrg(self.Data['B_fb'],self.Data['vec_fb'],self.Args['PoissFact'])
 
 	def B2G_FBRot(self):
 		if 'KxShift' in self.Configs:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(\
+			  self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 		else:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(\
+			  self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 
