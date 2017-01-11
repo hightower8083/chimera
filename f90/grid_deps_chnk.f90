@@ -1,17 +1,19 @@
-subroutine dep_curr_chnk(coord,momenta,wghts,curr,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,&
-                    np,nx,nr,nkO,nchnk)
+subroutine dep_curr_chnk(coord,momenta,wghts,curr, &
+                         IndInChunk,guards,leftX,Rgrid,&
+                         dx_inv,dr_inv,np,nx,nr,nkO,nchnk)
 use omp_lib
 implicit none
 integer, intent(in)        :: np,nx,nr,nkO,nchnk,IndInChunk(0:nchnk),guards
-real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                              dx_inv,dr_inv
+real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np)
+real (kind=8), intent(in)  :: leftX,Rgrid(0:nr),dx_inv,dr_inv
 complex(kind=8),intent(inout):: curr(0:nx,0:nr,0:nkO,3)
 integer         :: ix,ir,ip,k,l,iO,nxleft,chunk_size,ichnk
 real(kind=8)    :: xp,yp,zp,rp,gp,wp,S0(0:1,2),veloc(3),curr_p(0:1,0:1)
 complex(kind=8) :: ii=(0.0d0,1.0d0),phaseO(0:nkO),phase_m
 complex(kind=8), allocatable :: loc_left(:,:,:,:),loc_right(:,:,:,:)
 
-!f2py intent(in) :: coord,momenta,wghts,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv
+!f2py intent(in) :: coord,momenta,wghts,IndInChunk,guards
+!f2py intent(in) :: leftX,Rgrid,dx_inv,dr_inv
 !f2py intent(in,out) :: curr
 !f2py intent(hide) :: np,nx,nr,nkO,nchnk
 
@@ -72,11 +74,14 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
     do iO = 0,nkO
       do k = 0,1
         if (ix+k<=0) then
-          loc_left(ix+k,ir:ir+1,iO,l) = loc_left(ix+k,ir:ir+1,iO,l)+phaseO(iO)*veloc(l)*curr_p(k,:)
+          loc_left(ix+k,ir:ir+1,iO,l) = loc_left(ix+k,ir:ir+1,iO,l) &
+                                      + phaseO(iO)*veloc(l)*curr_p(k,:)
         elseif (ix+k>=chunk_size) then
-          loc_right(ix+k,ir:ir+1,iO,l)=loc_right(ix+k,ir:ir+1,iO,l)+phaseO(iO)*veloc(l)*curr_p(k,:)
+          loc_right(ix+k,ir:ir+1,iO,l) = loc_right(ix+k,ir:ir+1,iO,l) &
+                                       + phaseO(iO)*veloc(l)*curr_p(k,:)
         else
-          curr(ix+nxleft+k,ir:ir+1,iO,l)=curr(ix+nxleft+k,ir:ir+1,iO,l)+phaseO(iO)*veloc(l)*curr_p(k,:)
+          curr(ix+nxleft+k,ir:ir+1,iO,l) = curr(ix+nxleft+k,ir:ir+1,iO,l) &
+                                         + phaseO(iO)*veloc(l)*curr_p(k,:)
         endif
       enddo
     enddo
@@ -105,13 +110,14 @@ enddo
 
 end subroutine
 
-subroutine dep_dens_chnk(coord,wghts,dens,IndInChunk,guards,leftX,Rgrid,dx_inv,dr_inv,&
-                    np,nx,nr,nkO,nchnk)
+subroutine dep_dens_chnk(coord,wghts,dens,IndInChunk, &
+                         guards,leftX,Rgrid,dx_inv,dr_inv,&
+                         np,nx,nr,nkO,nchnk)
 use omp_lib
 implicit none
 integer, intent(in)        :: np,nx,nr,nkO,nchnk,IndInChunk(0:nchnk),guards
-real (kind=8), intent(in)  :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                              dx_inv,dr_inv
+real (kind=8), intent(in)  :: coord(3,np), wghts(np)
+real (kind=8), intent(in)  :: leftX,Rgrid(0:nr), dx_inv, dr_inv
 complex(kind=8),intent(inout):: dens(0:nx,0:nr,0:nkO)
 integer         :: ix,ir,ip,k,iO,nxleft,chunk_size,ichnk
 real(kind=8)    :: xp,yp,zp,rp,wp,S0(0:1,2), dens_p(0:1,0:1)
@@ -173,11 +179,14 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
   do iO = 0,nkO
     do k = 0,1
       if (ix+k<=0) then
-        loc_left(ix+k,ir:ir+1,iO) = loc_left(ix+k,ir:ir+1,iO)+phaseO(iO)*dens_p(k,:)
+        loc_left(ix+k,ir:ir+1,iO) = loc_left(ix+k,ir:ir+1,iO) &
+                                  + phaseO(iO)*dens_p(k,:)
       elseif (ix+k>=chunk_size) then
-        loc_right(ix+k,ir:ir+1,iO) = loc_right(ix+k,ir:ir+1,iO)+phaseO(iO)*dens_p(k,:)
+        loc_right(ix+k,ir:ir+1,iO) = loc_right(ix+k,ir:ir+1,iO) &
+                                   + phaseO(iO)*dens_p(k,:)
       else
-        dens(ix+nxleft+k,ir:ir+1,iO) = dens(ix+nxleft+k,ir:ir+1,iO)+ phaseO(iO)*dens_p(k,:)
+        dens(ix+nxleft+k,ir:ir+1,iO) = dens(ix+nxleft+k,ir:ir+1,iO) &
+                                     + phaseO(iO)*dens_p(k,:)
       endif
     enddo
   enddo

@@ -1,10 +1,11 @@
 subroutine dep_curr(coord,momenta,wghts,curr,leftX,Rgrid,dx_inv,dr_inv,&
                     np,nx,nr,nkO)
 implicit none
-integer, intent(in)        :: np,nx,nr,nkO
-real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                              dx_inv,dr_inv
-complex(kind=8),intent(inout):: curr(0:nx,0:nr,0:nkO,3)
+integer, intent(in)           :: np,nx,nr,nkO
+real (kind=8), intent(in)     :: coord(3,np),momenta(3,np),wghts(np)
+real (kind=8), intent(in)     :: leftX,Rgrid(0:nr),dx_inv,dr_inv
+complex(kind=8),intent(inout) :: curr(0:nx,0:nr,0:nkO,3)
+
 integer         :: ix,ir,ip,k,l,iO
 real(kind=8)    :: xp,yp,zp,rp,wp,gp,S0(0:1,2),veloc(3),curr_p(0:1,0:1)
 complex(kind=8) :: ii=(0.0d0,1.0d0),phaseO(0:nkO),phase_m
@@ -53,7 +54,8 @@ do ip=1,np
 
   do l=1,3
     do iO = 0,nkO
-      curr(ix:ix+1,ir:ir+1,iO,l) = curr(ix:ix+1,ir:ir+1,iO,l)+ phaseO(iO)*veloc(l)*curr_p
+      curr(ix:ix+1,ir:ir+1,iO,l) = curr(ix:ix+1,ir:ir+1,iO,l) &
+                                 + phaseO(iO)*veloc(l)*curr_p
     enddo
   enddo
 enddo
@@ -70,10 +72,10 @@ end subroutine
 subroutine dep_dens(coord,wghts,dens,leftX,Rgrid,dx_inv,dr_inv,&
                     np,nx,nr,nkO)
 implicit none
-integer, intent(in)        :: np,nx,nr,nkO
-real (kind=8), intent(in)  :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                              dx_inv,dr_inv
-complex(kind=8),intent(inout):: dens(0:nx,0:nr,0:nkO)
+integer, intent(in)           :: np,nx,nr,nkO
+real (kind=8), intent(in)     :: coord(3,np),wghts(np)
+real (kind=8), intent(in)     :: leftX,Rgrid(0:nr),dx_inv,dr_inv
+complex(kind=8),intent(inout) :: dens(0:nx,0:nr,0:nkO)
 integer         :: ix,ir,ip,k,iO
 real(kind=8)    :: xp,yp,zp,rp,wp,S0(0:1,2), dens_p(0:1,0:1)
 complex(kind=8) :: ii=(0.0d0,1.0d0),phaseO(0:nkO),phase_m
@@ -131,12 +133,14 @@ subroutine proj_fld(coord,wghts,Fld,Fld_tot,leftX,Rgrid,dx_inv,&
                              dr_inv,np,nx,nr,nkO)
 implicit none
 integer, intent(in)          :: np,nx,nr,nkO
-real (kind=8),    intent(in) :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),dx_inv,dr_inv
+real (kind=8),    intent(in) :: coord(3,np),wghts(np)
+real (kind=8),    intent(in) :: leftX,Rgrid(0:nr),dx_inv,dr_inv
 complex (kind=8), intent(in) :: Fld(0:nx,0:nr,0:nkO,6)
 real (kind=8), intent(inout) :: Fld_tot(6,np)
 integer         :: ix,ir,ip,iO,k,l
 real(kind=8)    :: xp,yp,zp,wp,rp,S0(0:1,2),Fld_p(6)
-complex(kind=8) :: ii=(0.0d0,1.0d0),phase_p,phaseO(0:nkO),projcomp(0:1,0:1,0:nkO)
+complex(kind=8) :: ii=(0.0d0,1.0d0),phase_p,phaseO(0:nkO)
+complex(kind=8) :: projcomp(0:1,0:1,0:nkO)
 
 !f2py intent(in)     :: coord,wghts,Fld,leftX,Rgrid,dx_inv,dr_inv
 !f2py intent(in,out) :: Fld_tot

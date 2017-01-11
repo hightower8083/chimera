@@ -2,8 +2,9 @@ subroutine dep_curr_env(coord,momenta,wghts,curr,leftX,Rgrid,dx_inv,dr_inv,&
                     kx0,np,nx,nr,nkO)
 implicit none
 integer, intent(in)        :: np,nx,nr,nkO
-real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                              dx_inv,dr_inv,kx0
+real (kind=8), intent(in)  :: coord(3,np),momenta(3,np),wghts(np)
+real (kind=8), intent(in)  :: leftX,Rgrid(0:nr)
+real (kind=8), intent(in)  :: dx_inv,dr_inv,kx0
 complex(kind=8),intent(inout):: curr(0:nx,0:nr,-nkO:nkO,3)
 integer         :: ix,ir,ip,k,l,iO
 real(kind=8)    :: xp,yp,zp,rp,gp,veloc(3),S0(0:1,2)
@@ -57,9 +58,12 @@ do ip=1,np
 
   do l=1,3
     do iO = 0,nkO
-      curr(ix:ix+1,ir:ir+1,iO,l) = curr(ix:ix+1,ir:ir+1,iO,l)+ phaseO(iO)*veloc(l)*curr_p
-      if (iO>0) curr(ix:ix+1,ir:ir+1,-iO,l) = curr(ix:ix+1,ir:ir+1,-iO,l)+ &
-        CONJG(phaseO(iO))*veloc(l)*curr_p
+      curr(ix:ix+1,ir:ir+1,iO,l) = curr(ix:ix+1,ir:ir+1,iO,l) &
+                                 + phaseO(iO)*veloc(l)*curr_p
+      if (iO>0) then
+        curr(ix:ix+1,ir:ir+1,-iO,l) = curr(ix:ix+1,ir:ir+1,-iO,l) &
+                                    + CONJG(phaseO(iO))*veloc(l)*curr_p
+      endif
     enddo
   enddo
 enddo
@@ -77,8 +81,8 @@ subroutine dep_dens_env(coord,wghts,dens,leftX,Rgrid,dx_inv,dr_inv,&
                     kx0,np,nx,nr,nkO)
 implicit none
 integer, intent(in)        :: np,nx,nr,nkO
-real (kind=8), intent(in)  :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),&
-                              dx_inv,dr_inv,kx0
+real (kind=8), intent(in)  :: coord(3,np),wghts(np)
+real (kind=8), intent(in)  :: leftX,Rgrid(0:nr), dx_inv,dr_inv,kx0
 complex(kind=8),intent(inout):: dens(0:nx,0:nr,-nkO:nkO)
 integer         :: ix,ir,ip,k,iO
 real(kind=8)    :: xp,yp,zp,rp,S0(0:1,2)
@@ -126,8 +130,12 @@ do ip=1,np
   dens_p = dens_p*wp
 
   do iO = 0,nkO
-    dens(ix:ix+1,ir:ir+1,iO) = dens(ix:ix+1,ir:ir+1,iO)+ phaseO(iO)*dens_p
-    if (iO>0) dens(ix:ix+1,ir:ir+1,-iO) = dens(ix:ix+1,ir:ir+1,-iO)+ CONJG(phaseO(iO))*dens_p
+    dens(ix:ix+1,ir:ir+1,iO) = dens(ix:ix+1,ir:ir+1,iO) &
+                             + phaseO(iO)*dens_p
+    if (iO>0) then
+      dens(ix:ix+1,ir:ir+1,-iO) = dens(ix:ix+1,ir:ir+1,-iO) &
+                                + CONJG(phaseO(iO))*dens_p
+    endif
   enddo
 enddo
 
@@ -140,19 +148,21 @@ subroutine proj_fld_env(coord,wghts,Fld,Fld_tot,leftX,Rgrid,dx_inv,&
                              dr_inv,kx0,np,nx,nr,nkO)
 implicit none
 integer, intent(in)          :: np,nx,nr,nkO
-real (kind=8),    intent(in) :: coord(3,np),wghts(np),leftX,Rgrid(0:nr),dx_inv,dr_inv,kx0
+real (kind=8),    intent(in) :: coord(3,np),wghts(np)
+real (kind=8),    intent(in) :: leftX,Rgrid(0:nr),dx_inv,dr_inv,kx0
 complex (kind=8), intent(in) :: Fld(0:nx,0:nr,-nkO:nkO,6)
 real (kind=8), intent(inout) :: Fld_tot(6,np)
 integer         :: ix,ir,ip,iO,k,l
 real(kind=8)    :: xp,yp,zp,wp,rp,S0(0:1,2),Fld_p(6)
-complex(kind=8) :: ii=(0.0d0,1.0d0),phase_p,phaseO(0:nkO),projcomp(0:1,0:1),projcompO(0:1,0:1)
+complex(kind=8) :: ii=(0.0d0,1.0d0),phase_p,phaseO(0:nkO)
+complex(kind=8) :: projcomp(0:1,0:1),projcompO(0:1,0:1)
 
 !f2py intent(in)     :: coord,wghts,Fld,leftX,Rgrid,dx_inv,dr_inv,kx0
 !f2py intent(in,out) :: Fld_tot
 !f2py intent(hide)   :: np,nx,nr,nkO
 
-!$omp parallel default(shared) private(ix,ir,ip,k,l,iO,xp,yp,zp,rp,wp,S0,Fld_p,&
-!$omp phaseO,phase_p,projcomp,projcompO)
+!$omp parallel default(shared) private(ix,ir,ip,k,l,iO,xp,yp,zp,rp,wp,&
+!$omp S0,Fld_p,phaseO,phase_p,projcomp,projcompO)
 !$omp do schedule(static)
 do ip=1,np
   wp = wghts(ip)
