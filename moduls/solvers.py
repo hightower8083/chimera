@@ -16,11 +16,11 @@ class Solver:
 		dt = self.Configs['TimeStep']
 		self.Configs['TimeStepInv'] = 1.0/dt
 
-		print 'Constructing solver with cylindric boundaries: ',\
-		  'left={0:.3g}, right={1:.3g}, radius={2:.3g}'.format(\
+		print 'Constructing solver with cylindric boundaries:\n',\
+		  '   left={0:.3g}, right={1:.3g}, radius={2:.3g}'.format(\
 			  leftX,rightX, lengthR)
-		print 'Spatial and temporal resolutions: ',\
-			 'dx={0:.3g}, dr={1:.3g}, dt={2:.3g}'.format(dx,dr,dt)
+		print 'Spatial and temporal resolutions:\n',\
+		  '   dx={0:.3g}, dr={1:.3g}, dt={2:.3g}'.format(dx,dr,dt)
 
 		if 'TimeActive' in self.Configs:
 			self.TimeInterval = self.Configs['TimeActive']
@@ -30,7 +30,7 @@ class Solver:
 
 		if 'KxShift' in self.Configs:
 			kx0 = 2*np.pi*self.Configs['KxShift']
-			print 'Spectral domain is shifted to {:.3e}'.\
+			print 'Spectral domain is shifted to {:.3g}'.\
 			  format(self.Configs['KxShift'])
 		else:
 			kx0 = 0.0
@@ -88,7 +88,8 @@ class Solver:
 			Mmin    , Mmax    , Mtot     = 0, Nko   , Nko+1
 			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
 
-		print 'Grid resolutions are ({0:d},{1:d},{2:d})'.format(Nx,Nkr,Mtot)
+		print 'Grid resolutions are:\n',\
+		  '   Nx={0:d}, Nr={1:d}, Mo={2:d}'.format(Nx,Nkr,Mtot)
 
 		kr   = np.zeros((Nkr,Mtot_ext))
 		kr_g = np.zeros((Nx,Nkr,Mtot ))
@@ -161,20 +162,45 @@ class Solver:
 			filt_antialias = np.ones_like(filt_bandpass)
 
 			if 'NoAntiEcho' not in self.Configs['Features']:
-				fu_antialias = lambda x,x0 :1-np.exp(-(x-x0)**2/((x0+1.)/Nx)**2)
+				print 'Echo suppression is actived (to be careful)'
+				print "To disactivate add 'NoAntiEcho' to solvers 'Features'"
+				print "To change AntiEcho filter strengths,\n", \
+				  " set 'AntiEchoStrength' in solvers 'Features'"
+
+				if 'AntiEchoStrength' in self.Configs['Features']:
+					ae = self.Configs['Features']['AntiEchoStrength']
+				else:
+					ae = 2
 				cell_echos = np.abs(kx_env).max()/kx0*np.arange(20)-1.
 				full_band = np.array([kx.min()/kx0, kx.max()/kx0])-1.
 
+				fu_antialias = lambda x, x0, ae0 :\
+				  1-np.exp(-(x-x0)**2/(ae0*(x0+1.)/Nx)**2)
+
+				echo_ind = 0
 				for cellecho in cell_echos:
 					if cellecho>full_band[0] and cellecho<full_band[1]:
 						ech = cellecho/abs(full_band).max()
-						print 'possible grid echo at {0:.5g}'.format(ech)
-						if abs(cellecho)/abs(full_band).max()>0.4:
-							print 'will correct {0:.5g}'.format(ech)
-							filt_antialias *= fu_antialias(\
-							  kx/kx0-1,cellecho)[:,None,None]
+						echo_str = '  *possible grid echo at {0:.5g} '.format(ech)
+						if type(ae)==list or type(ae)==tuple:
+							ae_loc = ae[echo_ind]
 						else:
-							print 'no correction: too close to resonance'
+							ae_loc = ae
+						echo_ind +=1
+						if abs(cellecho)/abs(full_band).max()<0.4:
+							echo_str += '(close to resonance) '
+
+						if ae_loc <= 0:
+							echo_str += 'no correction'
+							print echo_str
+							continue
+
+						filt_antialias *= fu_antialias(\
+						  kx/kx0-1,cellecho,ae_loc)[:,None,None]
+
+						echo_str += 'correcting with strength {0:g}'.\
+						  format(ae_loc)
+						print echo_str
 
 			self.Args['DepFact'] = np.asfortranarray((2*np.pi)**2/Nx*\
 			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass\
@@ -373,16 +399,6 @@ class Solver:
 			self.Data['vec_fb'] = chimera.fb_graddiv(\
 			  self.Data['vec_fb'],*self.Args['FBDiff'])
 
-	def FBGradPoissDiv(self):
-		if 'KxShift' in self.Configs:
-			self.Data['vec_fb'] = chimera.fb_gradpoissdiv_env(\
-			  self.Data['vec_fb'], self.Args['PoissFact_ext'],\
-			  *self.Args['FBDiff'])
-		else:
-			self.Data['vec_fb'] = chimera.fb_gradpoissdiv(\
-			  self.Data['vec_fb'],self.Args['PoissFact_ext'],\
-			  *self.Args['FBDiff'])
-
 	def FBGradDens(self):
 		if 'KxShift' in self.Configs:
 			self.Data['gradRho_fb_nxt'] = chimera.fb_grad_env(\
@@ -481,19 +497,7 @@ class Solver:
 			  np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],\
 			  *self.Args['FBDiff'])
 
-	def test_calibration(self):
-		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,:3]
-		self.FBDiv()
-		t1 = (self.Data['scl_fb'] - self.Data['Rho_fb']).copy()
-		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
-		self.FBDiv()
-		t2 = self.Data['scl_fb'].copy()
-		self.Data['vec_fb'][:] = self.Data['B_fb']
-		self.FBDiv()
-		t3 = self.Data['scl_fb'].copy()
-		return t1,t2,t3
-
-	def divG_clean(self):
+	def divG_clean(self):		
 		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
 		self.FBGradDiv()
 		self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'],\
@@ -509,12 +513,6 @@ class Solver:
 		vec = chimera.omp_add_vec(vec,self.Data['vec_fb'])
 		return vec
 
-	def divB_clean(self):
-		self.Data['vec_fb'][:] = self.Data['B_fb']
-		self.FBGradDiv()
-		self.Data['B_fb'] = chimera.omp_add_vec(self.Data['B_fb'],\
-		  self.Data['vec_fb'])
-
 #####################################################################
 
 	def B2G_FBRot(self):
@@ -524,4 +522,16 @@ class Solver:
 		else:
 			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(\
 			  self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+
+	def test_calibration(self):
+		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,:3]
+		self.FBDiv()
+		t1 = (self.Data['scl_fb'] - self.Data['Rho_fb']).copy()
+		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
+		self.FBDiv()
+		t2 = self.Data['scl_fb'].copy()
+		self.Data['vec_fb'][:] = self.Data['B_fb']
+		self.FBDiv()
+		t3 = self.Data['scl_fb'].copy()
+		return t1,t2,t3
 

@@ -15,19 +15,23 @@ class ChimeraRun():
 			self.Solvers = ()
 		if 'MovingFrames' in SimComps:
 			self.MovingFrames = SimComps['MovingFrames']
-			for wind in  self.MovingFrames:
-				if 'Features'   not in wind: wind['Features']   = ()
-				if 'TimeActive' not in wind: wind['TimeActive'] = (0.0,np.inf)
-				if 'Velocity'   not in wind: wind['Velocity']   = 1.0
-				if 'Staged' in wind['Features']:
-					wind['shiftX'] = 0.5*wind['Velocity']*wind['TimeStep']\
-					  * wind['Steps']
-				else:
-					wind['shiftX'] = wind['Velocity']*wind['TimeStep']*wind['Steps']
+			self.init_Moving_Frames()
 		else:
 			self.MovingFrames = ()
 		self.init_damp_profile()
 		self.make_halfstep()
+
+
+	def init_Moving_Frames(self):
+		for wind in  self.MovingFrames:
+			if 'Features'   not in wind: wind['Features']   = ()
+			if 'TimeActive' not in wind: wind['TimeActive'] = (0.0,np.inf)
+			if 'Velocity'   not in wind: wind['Velocity']   = 1.0
+			if 'Staged' in wind['Features']:
+				wind['shiftX'] = 0.5*wind['Velocity']*wind['TimeStep']\
+				  * wind['Steps']
+			else:
+				wind['shiftX'] = wind['Velocity']*wind['TimeStep']*wind['Steps']
 
 	def init_damp_profile(self):
 		for solver in self.Solvers:
