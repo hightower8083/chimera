@@ -73,7 +73,7 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
   enddo
   curr_p = curr_p*wp
 
-  do l=1,3
+  do l=3,3 !! for non coreected tests
     do iO = 0,nkO
       do k = 0,1
         if (ix+k<=0) then
@@ -105,13 +105,13 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
 enddo
 
 if (nxleft+chunk_size+guards<=nx) then
-  curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,:,:) = &
-   curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,:,:) + loc_right
+  curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,:,3) = &
+   curr(nxleft+chunk_size:nxleft+chunk_size+guards,:,:,3) + loc_right(:,:,:,3)
 endif
 !$omp barrier
 if (nxleft-guards>=0) then
-  curr(nxleft-guards:nxleft,:,:,:) = &
-   curr(nxleft-guards:nxleft,:,:,:) + loc_left
+  curr(nxleft-guards:nxleft,:,:,3) = &
+   curr(nxleft-guards:nxleft,:,:,3) + loc_left(:,:,:,3)
 endif
 !$omp barrier
 deallocate(loc_left)

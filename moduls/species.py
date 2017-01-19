@@ -7,6 +7,19 @@ class Specie:
 	def __init__(self,PartSpcs):
 		self.Configs = PartSpcs
 		if 'Features' not in self.Configs: self.Configs['Features'] = ()
+		if 'Charge' not in self.Configs: self.Configs['Charge'] = -1.0
+		if 'Mass' not in self.Configs: self.Configs['Mass'] = 1.0
+		if 'Density' not in self.Configs: self.Configs['Density'] = 0.0
+		if 'MomentaMeans' not in self.Configs:
+			self.Configs['MomentaMeans'] = (0.0,0.0,0.0)
+		if 'MomentaSpreads' not in self.Configs:
+			self.Configs['MomentaSpreads'] = (0.0,0.0,0.0)
+
+		if 'Devices' in self.Configs:
+			self.Devices = self.Configs['Devices']
+		else:
+			self.Devices = ()
+
 		leftX, rightX,lengthR, dx, dr = self.Configs['Grid']
 
 		if 'Xchunked' in self.Configs:
@@ -38,7 +51,7 @@ class Specie:
 		else:
 			self.Num_p = 0
 
-		if 'Density' in self.Configs:
+		if self.Num_p !=0 :
 			self.wght0 = self.Configs['Charge']*self.Configs['Density'] \
 			  * dr*dx*2*np.pi/self.Num_p
 		else:
@@ -50,16 +63,6 @@ class Specie:
 		self.Args = {'Nx':Nx,'Nr':Nr,'Xgrid':Xgrid,'Rgrid':Rgrid,\
 		  'leftX':leftX,'rightX':rightX,'lowerR':(Rgrid*(Rgrid>=0)).min(),\
 		  'upperR':Rgrid.max(),'dx':dx,'dr':dr,'NpSlice':Nx*self.Num_p}
-
-		if 'MomentaMeans' not in self.Configs:
-			self.Configs['MomentaMeans'] = (0.0,0.0,0.0)
-		if 'MomentaSpreads' not in self.Configs:
-			self.Configs['MomentaSpreads'] = (0.0,0.0,0.0)
-
-		if 'Devices' in self.Configs:
-			self.Devices = self.Configs['Devices']
-		else:
-			self.Devices = ()
 
 		self.Data = {}
 		self.Data['EB'] = np.zeros((6,0,),order='F')

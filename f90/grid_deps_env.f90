@@ -56,7 +56,7 @@ do ip=1,np
   enddo
   curr_p = curr_p*wp
 
-  do l=1,3
+  do l=3,3
     do iO = 0,nkO
       curr(ix:ix+1,ir:ir+1,iO,l) = curr(ix:ix+1,ir:ir+1,iO,l) &
                                  + phaseO(iO)*veloc(l)*curr_p
