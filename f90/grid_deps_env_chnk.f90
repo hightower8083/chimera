@@ -120,7 +120,7 @@ deallocate(loc_right)
 
 !$omp parallel do default(shared) private(l) schedule(static)
 do l=1,3
-  curr(:,1,:,l) = curr(:,1,:,l) - curr(:,0,:,l)
+  curr(:,1,:,l) = curr(:,1,:,l) + curr(:,0,:,l)
   curr(:,0,:,l) = 0.0
 enddo
 !$omp end parallel do
