@@ -79,8 +79,8 @@ do ip=1,np
   ampl = ampl*(1+taper*(coord(1,ip)-X0-0.5*Lx)/(0.5*Lx))
 
   ampl = ampl*a0
-  Fld(5,ip) = Fld(5,ip) + ampl*sin(ku*coord(1,ip))*cosh(ku*coord(2,ip))
-  Fld(4,ip) = Fld(4,ip) + ampl*cos(ku*coord(1,ip))*sinh(ku*coord(2,ip))
+  Fld(5,ip) = Fld(5,ip) + ampl*sin(ku*(coord(1,ip)-X0))*cosh(ku*coord(2,ip))
+  Fld(4,ip) = Fld(4,ip) + ampl*cos(ku*(coord(1,ip)-X0))*sinh(ku*coord(2,ip))
 enddo
 !$omp end do
 !$omp end parallel
