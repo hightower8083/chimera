@@ -34,7 +34,8 @@ class Diagnostics:
 			if 'Return' in diag['Features']:
 				ToReturn.append(self.Chimera.Solvers[jj].Data['EB'][:,1:].copy())
 			else:
-				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Solvers[jj].Data['EB'][:,1:])
+				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr \
+				  + '.npy',self.Chimera.Solvers[jj].Data['EB'][:,1:])
 		if 'Return' in diag['Features']: return ToReturn
 
 	def fldfb_out(self,diag):
@@ -43,7 +44,8 @@ class Diagnostics:
 			if 'Return' in diag['Features']:
 				ToReturn.append(self.Chimera.Solvers[jj].Data['EG_fb'].copy())
 			else:
-				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr+'.npy',self.Chimera.Solvers[jj].Data['EG_fb'])
+				np.save(self.out_folder+'ee_'+str(jj)+'_'+self.istr \
+				  + '.npy',self.Chimera.Solvers[jj].Data['EG_fb'])
 		if 'Return' in diag['Features']: return ToReturn
 
 	def dns_out(self,diag):
@@ -69,7 +71,9 @@ class Diagnostics:
 		if 'Return' in diag['Features']: ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
 			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
-			indx = np.nonzero( (1.+self.Chimera.Particles[jj].Data['momenta']**2).sum(0)>20.**2)[0] # LPA filter
+			indx = np.nonzero( \
+			  (1.+self.Chimera.Particles[jj].Data['momenta']**2).sum(0) \
+			  > 20.**2)[0] # LPA filter
 			PartsPack = np.concatenate((\
 			  self.Chimera.Particles[jj].Data['coords_halfstep'][:,indx],\
 			  self.Chimera.Particles[jj].Data['momenta'][:,indx],\
@@ -77,7 +81,8 @@ class Diagnostics:
 			if 'Return' in diag['Features']:
 				ToReturn.append(PartsPack.copy())
 			else:
-				np.save(self.out_folder+'phs'+str(jj)+'_'+self.istr+'.npy',PartsPack)
+				np.save(self.out_folder+'phs'+str(jj)+'_'+self.istr \
+				  + '.npy',PartsPack)
 			PartsPack = None
 			indx = None
 		if 'Return' in diag['Features']: return ToReturn
@@ -86,7 +91,8 @@ class Diagnostics:
 		if 'Return' in diag['Features']:	ToReturn = []
 		for jj in range(len(self.Chimera.Solvers)):
 			sol = self.Chimera.Solvers[jj]
-			dat = ((abs(sol.Data['EG_fb'][:,:,:,:3])**2).sum(-1)*sol.Args['EnergyFact']).sum(-1).sum(-1)
+			dat = ((abs(sol.Data['EG_fb'][:,:,:,:3])**2).sum(-1) \
+			  * sol.Args['EnergyFact']).sum(-1).sum(-1)
 			dat = np.r_[dat[dat.shape[0]/2+1:], dat[:dat.shape[0]/2+1]]
 			if 'Return' in diag['Features']:
 				ToReturn.append(dat.copy())
@@ -101,14 +107,17 @@ class Diagnostics:
 		for jj in range(len(self.Chimera.Solvers)):
 			sol = self.Chimera.Solvers[jj]
 			Rgrid,dr = sol.Args['RgridFull'],sol.Args['dr']
-			dat = chimera.fb_vec_out(sol.Data['EG_fb'][:,:,:,:3],sol.Args['leftX'],*sol.Args['FBoutFull'])
+			dat = chimera.fb_vec_out(sol.Data['EG_fb'][:,:,:,:3], \
+			  sol.Args['leftX'],*sol.Args['FBoutFull'])
 
 			if 'Return' in diag['Features']:
 				if 'Spot' in diag['Features']:
-					ToReturn.append([PwrFctr*2*dr*((np.abs(dat)**2).sum(-1).sum(-1)*Rgrid[None,:]).sum(-1),\
-					  chimera.intens_profo(dat,Ntheta)])
+					ToReturn.append([  PwrFctr*2*dr*\
+					  ((np.abs(dat)**2).sum(-1).sum(-1)*Rgrid[None,:]).sum(-1),\
+					  chimera.intens_profo(dat,Ntheta)  ])
 				else:
-					ToReturn.append(PwrFctr*2*dr*((np.abs(dat)**2).sum(-1).sum(-1)*Rgrid[None,:]).sum(-1))
+					ToReturn.append(PwrFctr*2*dr*\
+					  ((np.abs(dat)**2).sum(-1).sum(-1)*Rgrid[None,:]).sum(-1))
 			else:
 				fout = open(self.out_folder+'pwrX_'+str(jj)+'.txt',mode='a')
 				np.savetxt(fout,PwrFctr*2*dr*((np.abs(dat)**2).sum(-1).sum(-1)*\
@@ -123,7 +132,8 @@ class Diagnostics:
 	def get_beam_envelops(self):
 		ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
-			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
+			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: 
+				continue
 			x,y,z = self.Chimera.Particles[jj].Data['coords_halfstep']
 			px,py,pz = self.Chimera.Particles[jj].Data['momenta']
 			w = self.Chimera.Particles[jj].Data['weights']

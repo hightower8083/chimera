@@ -111,8 +111,13 @@ class Specie:
 			coords[-1] *= self.wght0
 		elif len(getargspec(ProfileFunc).args)==1:
 			coords[-1] *= self.wght0*ProfileFunc(coords[0])
-		else:
+		elif len(getargspec(ProfileFunc).args)==2:
+			coords[-1] *= self.wght0 \
+			  *ProfileFunc(coords[0],(coords[1:3]**2).sum(0)**0.5)
+		elif len(getargspec(ProfileFunc).args)==3:
 			coords[-1] *= self.wght0*ProfileFunc(*coords[0:3])
+		else:
+			print("can't understand the ProfileFunc")
 
 		if 'FlatSpectrum' in self.Configs['Features']:
 			rand_mom = 2*np.random.rand(3,Num_loc) - 1.0
