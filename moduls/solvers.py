@@ -154,7 +154,7 @@ class Solver:
 		  * jn(np.abs(np.arange(Mmin,Mmax+1)[None,None,:])+1,kr_g*lengthR)**2
 
 		if 'KxShift' in self.Configs:
-			cutafter = 0.8
+			cutafter = 0.85
 			fu_bandpass = lambda x : (x<cutafter)+(x>=cutafter)\
 			  * np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
 			filt_bandpass = fu_bandpass(np.abs(kx_env) \
@@ -171,17 +171,24 @@ class Solver:
 					ae = self.Configs['Features']['AntiEchoStrength']
 				else:
 					ae = 2
-				cell_echos = np.abs(kx_env).max()/kx0*np.arange(20)-1.
+
+				num_echoes = np.int(np.abs(kx).max()/np.abs(kx_env).max())+1
+				cell_echos = np.abs(kx_env).max()/kx0*np.arange(num_echoes)-1.
 				full_band = np.array([kx.min()/kx0, kx.max()/kx0])-1.
 
 				fu_antialias = lambda x, x0, ae0 :\
 				  1-np.exp(-(x-x0)**2/(ae0*(x0+1.)/Nx)**2)
 
 				echo_ind = 0
+				echo_order = 0
 				for cellecho in cell_echos:
+					echo_order+=1
 					if cellecho>full_band[0] and cellecho<full_band[1]:
 						ech = cellecho/abs(full_band).max()
-						echo_str = '  *possible grid echo at {0:.5g} '.format(ech)
+
+						echo_str = '  * {0:d}-th grid echo at {1:.5g} '\
+						  .format(echo_order, ech)
+
 						if type(ae)==list or type(ae)==tuple:
 							ae_loc = ae[echo_ind]
 						else:

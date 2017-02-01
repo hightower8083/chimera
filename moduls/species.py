@@ -113,7 +113,7 @@ class Specie:
 			coords[-1] *= self.wght0*ProfileFunc(coords[0])
 		elif len(getargspec(ProfileFunc).args)==2:
 			coords[-1] *= self.wght0 \
-			  *ProfileFunc(coords[0],(coords[1:3]**2).sum(0)**0.5)
+			  *ProfileFunc( coords[0], np.sqrt( (coords[1:3]**2).sum(0) ) )
 		elif len(getargspec(ProfileFunc).args)==3:
 			coords[-1] *= self.wght0*ProfileFunc(*coords[0:3])
 		else:
@@ -147,7 +147,7 @@ class Specie:
 		self.Data['momenta'][:,-Num2add:] = momenta
 		self.Data['weights'].resize((Num2actl+Num2add,), refcheck=False)
 		self.Data['weights'][-Num2add:] = weights
- 
+
 	def make_field(self):
 		if 'Still' in self.Configs['Features']: return
 		if self.Data['EB'].shape[-1]!=self.Data['coords'].shape[-1]:
