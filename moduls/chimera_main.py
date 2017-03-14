@@ -21,7 +21,6 @@ class ChimeraRun():
 		self.init_damp_profile()
 		self.make_halfstep()
 
-
 	def init_Moving_Frames(self):
 		for wind in  self.MovingFrames:
 			if 'Features'   not in wind: wind['Features']   = ()
@@ -44,7 +43,12 @@ class ChimeraRun():
 
 	def make_halfstep(self):
 		for species in self.Particles:
-			species.chunk_coords()
+			if len(self.Solvers)>0:
+				args_tmp = self.Solvers[0].Args
+			else:
+				args_tmp = self.Particles[0].Args
+			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'],0,args_tmp['Rgrid'].max()**2])
+			species.chunk_coords(SimDom, position=None)
 		self.project_current()
 		self.project_density()
 		for solver in self.Solvers:
@@ -53,7 +57,7 @@ class ChimeraRun():
 			solver.G2B_FBRot()
 		self.project_fields()
 		for species in self.Particles: species.make_device()
-		for species in self.Particles: 
+		for species in self.Particles:
 			species.push_velocs(dt=0.5*species.Configs['TimeStep'])
 
 	def make_step(self,istep):
@@ -243,7 +247,7 @@ class ChimeraRun():
 			for solver in self.Solvers:
 				if 'StaticKick' in solver.Configs['Features']: continue
 				if 'SpaceCharge' in solver.Configs['Features']:
-					if 'StillAsBackground' in solver.Configs['Features']:	
+					if 'StillAsBackground' in solver.Configs['Features']:
 						self.dep_bg(solver)
 					self.dep_dens(solver)
 
@@ -255,7 +259,7 @@ class ChimeraRun():
 
 	def frame_act(self,istep,act='stage1'):
 		for wind in self.MovingFrames:
-			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: 
+			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]:
 				continue
 			if act=='stage1': self.damp_fields(wind)
 			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: continue
@@ -274,4 +278,9 @@ class ChimeraRun():
 			  or 'NoSorting' in species.Configs['Features']: continue
 			if np.mod(istep, species.Configs['Xchunked'][1]+1)!= 0: continue
 			if species.Data['coords'].shape[-1] == 0: continue
-		species.chunk_coords('cntr')
+			if len(self.Solvers)>0:
+				args_tmp = self.Solvers[0].Args
+			else:
+				args_tmp = self.Particles[0].Args
+			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'],0,args_tmp['Rgrid'].max()**2])
+			species.chunk_coords(SimDom, position='cntr',)
