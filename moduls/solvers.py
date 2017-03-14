@@ -324,7 +324,7 @@ class Solver:
 				  self.Args['PoissFact'])
 				self.Data['J_fb'] = chimera.omp_add_vec(self.Data['J_fb'],\
 				  self.Data['vec_fb'])
-#		self.divG_clean()
+		self.divG_clean()
 
 	def maxwell_solver_stat(self,px0):
 		if 'SpaceCharge' not in self.Configs['Features'] \
@@ -504,7 +504,7 @@ class Solver:
 			  np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],\
 			  *self.Args['FBDiff'])
 
-	def divG_clean(self):		
+	def divG_clean(self):
 		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
 		self.FBGradDiv()
 		self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'],\
