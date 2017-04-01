@@ -25,7 +25,7 @@ FFTL = /usr/local/lib
 # -std=f2008 -pedantic -fbacktrace -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
 #FLAGS_I = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -heap-arrays 24576 -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
 
-FLAGS_G = -c -DF2PY_REPORT_ON_ARRAY_COPY=1 --opt='-O3 -ffast-math -march=native -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
+FLAGS_G = -c --opt='-O3 -ffast-math -march=native -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
 FLAGS_I = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
 
 F90 = f2py
