@@ -22,7 +22,7 @@ complex (kind=8) :: ii=(0.0, 1.0), integral, integral1, integral2, integral3
 !f2py intent(out) :: spect,energy
 !f2py intent(hide) :: num_nodes,num_part
 
-dt2p = (dt/2.0/pi)
+dt2p = dt/(2.0*pi)
 
 outstep = INT(CEILING(float(num_nodes)/float(Nout)))
 

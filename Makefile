@@ -5,7 +5,8 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
              ./f90/grid_deps_env.f90      ./f90/grid_deps_chnk.f90  \
              ./f90/grid_deps_env_chnk.f90 ./f90/maxwell_solvers.f90 \
              ./f90/particle_tools.f90     ./f90/devices.f90         \
-             ./f90/utils.f90              ./f90/synchrad.f90
+             ./f90/utils.f90              ./f90/SR.f90              \
+             ./f90/SR_serial.f90
 
 #FFTI = /home/sources/magins/andriyash/CODES/fftw/include
 #FFTL = /home/sources/magins/andriyash/CODES/fftw/lib
@@ -24,7 +25,7 @@ FFTL = /usr/local/lib
 # -std=f2008 -pedantic -fbacktrace -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
 #FLAGS_I = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -heap-arrays 24576 -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
 
-FLAGS_G = -c --opt='-O3 -ffast-math -march=native -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
+FLAGS_G = -c -DF2PY_REPORT_ON_ARRAY_COPY=1 --opt='-O3 -ffast-math -march=native -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
 FLAGS_I = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
 
 F90 = f2py
