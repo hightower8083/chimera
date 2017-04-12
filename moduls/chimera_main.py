@@ -45,7 +45,7 @@ class ChimeraRun():
 				args_tmp = self.Solvers[0].Args
 			else:
 				args_tmp = self.Particles[0].Args
-			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'],0,args_tmp['Rgrid'].max()**2])
+			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'],0,args_tmp['upperR']**2])
 			species.chunk_coords(SimDom, position=None)
 		self.project_current()
 		self.project_density()

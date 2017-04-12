@@ -14,6 +14,8 @@ class Specie:
 			self.Configs['MomentaMeans'] = (0.0,0.0,0.0)
 		if 'MomentaSpreads' not in self.Configs:
 			self.Configs['MomentaSpreads'] = (0.0,0.0,0.0)
+		if 'Grid' not in self.Configs:
+			self.Configs['Grid'] = ( 0.0, 0.0, 0.0, 1.0, 1.0 )
 
 		if 'Devices' in self.Configs:
 			self.Devices = self.Configs['Devices']
@@ -31,7 +33,17 @@ class Specie:
 		Nr = int(np.round(lengthR/dr))
 		Rgrid = dr*(np.arange(Nr)-0.5)
 		Xgrid  = rightX - dx*np.arange(Nx)[::-1]
-		leftX = Xgrid[0]
+		if Nx>0:
+			leftX = Xgrid[0]
+		else:
+			leftX = 0.0
+
+		if Nr>0:
+			lowerR = (Rgrid*(Rgrid>=0)).min()
+			upperR = Rgrid.max()
+		else:
+			lowerR = 0.0
+			upperR = 0.0
 
 		if 'FixedCell' in self.Configs:
 			self.Num_p = np.prod(self.Configs['FixedCell'])
@@ -61,8 +73,8 @@ class Specie:
 		self.weight2pC = 4*np.pi**2*m_e*c**2*epsilon_0*1e6/e
 
 		self.Args = {'Nx':Nx,'Nr':Nr,'Xgrid':Xgrid,'Rgrid':Rgrid,\
-		  'leftX':leftX,'rightX':rightX,'lowerR':(Rgrid*(Rgrid>=0)).min(),\
-		  'upperR':Rgrid.max(),'dx':dx,'dr':dr,'NpSlice':Nx*self.Num_p}
+		  'leftX':leftX,'rightX':rightX,'lowerR':lowerR,\
+		  'upperR':upperR,'dx':dx,'dr':dr,'NpSlice':Nx*self.Num_p}
 
 		self.Data = {}
 		self.Data['EB'] = np.zeros((6,0,),order='F')
