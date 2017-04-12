@@ -104,7 +104,8 @@ real(kind=8), intent(in) :: wghts(np), dt, omega(nom)
 real(kind=8), intent(in) :: SinTh(nth),CosTh(nth),SinPh(nph),CosPh(nph)
 real(kind=8), intent(inout) :: spect(nom,nth,nph)
 
-real (kind=8)    :: spect_loc(nom,nth,nph)
+!real (kind=8), allocatable    :: spect_loc(nom,nth,nph)
+real (kind=8), allocatable    :: spect_loc(:,:,:)
 integer          :: ip,it,ith,iph,iom
 real (kind=8)    :: coord(3),accel(3),veloc_prv(3),veloc_nxt(3),veloc(3),wp,gp_inv
 real (kind=8)    :: C1, C2, C4, C3,C2_inv, C2_inv2
@@ -120,11 +121,14 @@ complex (kind=8) :: ii=(0.0d0,1.0d0), integral(nom)
 dt_inv = 1.0d0/dt
 dt2p = dt/(2.0*pi)
 
-!$omp parallel default(private) shared(coords,momenta_prv,momenta_nxt,wghts,&
-!$omp                                  dt,omega,SinTh,CosTh,SinPh,CosPh,spect,&
-!$omp                                  nt,np,nom,nth,nph,ii,pi,dt_inv,dt2p)
+!$omp parallel default(shared) private(spect_loc,ip,it,ith,iph,iom,coord,accel, &
+!$omp                                  veloc_prv,veloc_nxt,veloc,wp,gp_inv, &
+!$omp                                  C1,C2, C4, C3,C2_inv, C2_inv2, &
+!$omp                                  sin_th,cos_th,sin_ph,cos_ph,omg,integral)
 
+allocate(spect_loc(nom,nth,nph))
 spect_loc = 0.0
+
 !$omp do schedule(static)
 do ip=1,np
   wp = SQRT(ABS(wghts(ip)))
@@ -179,6 +183,13 @@ do iph=1,nph
     enddo
   enddo
 enddo
+
+deallocate(spect_loc)
 !$omp end parallel
 
 end subroutine
+
+! !$omp parallel default(private) shared(coords,momenta_prv,momenta_nxt,wghts,&
+! !$omp                                  dt,omega,SinTh,CosTh,SinPh,CosPh,spect,&
+! !$omp                                  nt,np,nom,nth,nph,ii,pi,dt_inv,dt2p)
+

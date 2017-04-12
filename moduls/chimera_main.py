@@ -1,7 +1,5 @@
 import numpy as np
-from sys import path
-path.append('./moduls/')
-import fimera as chimera
+import chimera.moduls.fimera as chimera
 
 class ChimeraRun():
 	def __init__(self,SimComps):

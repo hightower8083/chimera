@@ -1,10 +1,10 @@
 import numpy as np
-from scipy.special import jn_zeros,jn,j1
-import chimera.moduls.fimera as chimera
-from scipy.constants import m_e,c, elementary_charge, epsilon_0
 from numpy.linalg import inv as inv
+from scipy.special import jn_zeros,jn,j1
+from scipy.constants import m_e,c, elementary_charge, epsilon_0
+import chimera.moduls.fimera as chimera
 
-poiss_corr_num = 1
+poiss_corr_num = 3
 
 class Solver:
 	def __init__(self,solver_in):
@@ -16,22 +16,22 @@ class Solver:
 		dt = self.Configs['TimeStep']
 		self.Configs['TimeStepInv'] = 1.0/dt
 
-		print 'Constructing solver with cylindric boundaries:\n',\
+		print( 'Constructing solver with cylindric boundaries:\n',\
 		  '   left={0:.3g}, right={1:.3g}, radius={2:.3g}'.format(\
-			  leftX,rightX, lengthR)
-		print 'Spatial and temporal resolutions:\n',\
-		  '   dx={0:.3g}, dr={1:.3g}, dt={2:.3g}'.format(dx,dr,dt)
+			  leftX,rightX, lengthR) )
+		print( 'Spatial and temporal resolutions:\n',\
+		  '   dx={0:.3g}, dr={1:.3g}, dt={2:.3g}'.format(dx,dr,dt))
 
 		if 'TimeActive' in self.Configs:
 			self.TimeInterval = self.Configs['TimeActive']
-			print 'Active interval is limited to', self.TimeInterval
+			print( 'Active interval is limited to', self.TimeInterval)
 		else:
 			self.TimeInterval = (0.0,np.inf)
 
 		if 'KxShift' in self.Configs:
 			kx0 = 2*np.pi*self.Configs['KxShift']
-			print 'Spectral domain is shifted to {:.3g}'.\
-			  format(self.Configs['KxShift'])
+			print( 'Spectral domain is shifted to {:.3g}'.\
+			  format(self.Configs['KxShift']))
 		else:
 			kx0 = 0.0
 
@@ -88,21 +88,16 @@ class Solver:
 			Mmin    , Mmax    , Mtot     = 0, Nko   , Nko+1
 			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
 
-		print 'Grid resolutions are:\n',\
-		  '   Nx={0:d}, Nr={1:d}, Mo={2:d}'.format(Nx,Nkr,Mtot)
-
 		kr   = np.zeros((Nkr,Mtot_ext))
 		kr_g = np.zeros((Nx,Nkr,Mtot ))
 		w    = np.zeros((Nx,Nkr,Mtot ))
 		Out    = np.zeros((Nkr,Nkr,Mtot))
 		In     = np.zeros((Nkr,Nkr,Mtot))
-
 		for jm in np.arange(Mmin_ext,Mmax_ext+1):
 			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
 		for jm in np.arange(Mmin,Mmax+1):
 			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
 			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
-
 		for jm in np.arange(Mmin,Mmax+1):
 			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
 			In [:,:,jm] = inv(Out[:,:,jm])
@@ -124,10 +119,13 @@ class Solver:
 			InCurr = InCurr[:,:indRcut-1]
 			OutFull=  Out.copy()
 			Out    =  Out[:indRcut-1]
-			print 'Rgrid is cut after {:.5g}'.format(self.Configs['Rcut'])
+			print( 'Rgrid is cut after {:.5g}'.format(self.Configs['Rcut']))
 		else:
 			OutFull =  Out
 			Rgrid  = RgridFull
+
+		print( 'Grid resolutions are:\n',\
+		  '   Nx={0:d}, Nr={1:d}, Mo={2:d}'.format(Nx,Nkr,Mtot))
 
 		Nr = Rgrid.shape[0]
 		kx_g = np.asfortranarray(kx_g)
@@ -162,10 +160,10 @@ class Solver:
 			filt_antialias = np.ones_like(filt_bandpass)
 
 			if 'NoAntiEcho' not in self.Configs['Features']:
-				print 'Echo suppression is actived (to be careful)'
-				print "To disactivate add 'NoAntiEcho' to solvers 'Features'"
-				print "To change AntiEcho filter strengths,\n", \
-				  " set 'AntiEchoStrength' in solvers 'Features'"
+				print( "Echo suppression is actived (to be careful)")
+				print( "To disactivate add 'NoAntiEcho' to solvers 'Features'")
+				print( "To change AntiEcho filter strengths,\n", \
+				  " set 'AntiEchoStrength' in solvers 'Features'")
 
 				if 'AntiEchoStrength' in self.Configs['Features']:
 					ae = self.Configs['Features']['AntiEchoStrength']
@@ -199,7 +197,7 @@ class Solver:
 
 						if ae_loc <= 0:
 							echo_str += 'no correction'
-							print echo_str
+							print( echo_str)
 							continue
 
 						filt_antialias *= fu_antialias(\
@@ -207,7 +205,7 @@ class Solver:
 
 						echo_str += 'correcting with strength {0:g}'.\
 						  format(ae_loc)
-						print echo_str
+						print( echo_str)
 
 			self.Args['DepFact'] = np.asfortranarray((2*np.pi)**2/Nx*\
 			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass\
@@ -242,14 +240,14 @@ class Solver:
 
 		if 'SpaceCharge' in self.Configs['Features'] \
 		  or 'StaticKick' in self.Configs['Features']:
-			print 'Charge density will be considered'
+			print( 'Charge density will be considered')
 			self.Data['Rho']        = np.zeros_like(self.Data['scl_spc'])
 			self.Data['Rho_fb']     = np.zeros_like(self.Data['scl_fb'])
 			self.Data['gradRho_fb_nxt'] = np.zeros_like(self.Data['vec_fb'])
 			self.Data['gradRho_fb_prv'] = np.zeros_like(self.Data['vec_fb'])
 
 		if 'StillAsBackground' in self.Configs['Features']:
-			print '"Still" species will be treated as background'
+			print( '"Still" species will be treated as background')
 			self.Data['BckGrndRho'] = np.zeros_like(self.Data['scl_spc'])
 
 		if 'CoPropagative' in self.Configs:
@@ -257,7 +255,7 @@ class Solver:
 		else:
 			self.PSATD_coeffs()
 		if 'NoPoissonCorrection' in self.Configs['Features']:
-			print 'Poisson correction will not be performed'
+			print( 'Poisson correction will not be performed')
 
 	def PSATD_coeffs(self,beta=1):
 		kx_g,w = self.Args['kx_g'],self.Args['w']
