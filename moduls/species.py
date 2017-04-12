@@ -1,7 +1,7 @@
 import numpy as np
+from scipy.constants import m_e,c,e,epsilon_0
 from inspect import getargspec
 import chimera.moduls.fimera as chimera
-from scipy.constants import m_e,c,e,epsilon_0
 
 class Specie:
 	def __init__(self,PartSpcs):

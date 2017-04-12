@@ -1,6 +1,7 @@
 import numpy as np
 import os
-import fimera as chimera
+import chimera.moduls.fimera as chimera
+#import fimera as chimera
 
 PwrFctr = 0.5*0.511e6*1.6022e-19/2.818e-13*2.9979e10
 Ntheta = 60
@@ -93,7 +94,7 @@ class Diagnostics:
 			sol = self.Chimera.Solvers[jj]
 			dat = ((abs(sol.Data['EG_fb'][:,:,:,:3])**2).sum(-1) \
 			  * sol.Args['EnergyFact']).sum(-1).sum(-1)
-			dat = np.r_[dat[dat.shape[0]/2+1:], dat[:dat.shape[0]/2+1]]
+			dat = np.r_[dat[dat.shape[0]//2+1:], dat[:dat.shape[0]//2+1]]
 			if 'Return' in diag['Features']:
 				ToReturn.append(dat.copy())
 			else:
