@@ -20,24 +20,28 @@ class SR:
 		self.Args = {}
 		self.Data = {}
 
-		self.Args['omega'] = np.r_[omega_min:omega_max:Nom*1j]
+		if 'WavelengthGrid' in self.Configs['Features']:
+			self.Args['wavelengths'] = np.r_[1./omega_max:1./omega_min:Nom*1j]
+			self.Args['omega'] = 1./self.Args['wavelengths']
+		else:
+			self.Args['omega'] = np.r_[omega_min:omega_max:Nom*1j]
 		self.Args['theta'] = np.r_[theta_min:theta_max:Nth*1j]
 		self.Args['phi'] = phi_min + (phi_max-phi_min)/Nph*np.arange(Nph)
 
-		if Nom>1:
+		if Nom>1: # TO SET UP WITH NON-UNIFORM OMEGA
 			self.Args['dw'] = self.Args['omega'][1]- self.Args['omega'][0]
 		else:
-			self.Args['dw'] = 0.0
+			self.Args['dw'] = 1.
 
 		if Nth>1:
 			self.Args['dth'] = self.Args['theta'][1]- self.Args['theta'][0]
 		else:
-			self.Args['dth'] = 0.0
+			self.Args['dth'] = 1.
 
 		if Nph>1:
 			self.Args['dph'] = self.Args['phi'][1]- self.Args['phi'][0]
 		else:
-			self.Args['dph'] = 0.0
+			self.Args['dph'] = 1.
 
 		self.Args['dV'] = self.Args['dw']*self.Args['dth']*self.Args['dph']
 
