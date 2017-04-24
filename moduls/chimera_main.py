@@ -1,5 +1,6 @@
 import numpy as np
 import chimera.moduls.fimera as chimera
+import time, os, h5py
 
 class ChimeraRun():
 	def __init__(self,SimComps):
@@ -45,7 +46,8 @@ class ChimeraRun():
 				args_tmp = self.Solvers[0].Args
 			else:
 				args_tmp = self.Particles[0].Args
-			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'],0,args_tmp['upperR']**2])
+			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'], \
+			  0,args_tmp['upperR']**2])
 			species.chunk_coords(SimDom, position=None)
 		self.project_current()
 		self.project_density()
@@ -259,7 +261,7 @@ class ChimeraRun():
 		for wind in self.MovingFrames:
 			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]:
 				continue
-			if act=='stage1': self.damp_fields(wind)
+			self.damp_fields(wind)
 			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: continue
 			if act=='stage1':
 #				self.damp_fields(wind)
@@ -282,3 +284,90 @@ class ChimeraRun():
 				args_tmp = self.Particles[0].Args
 			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'],0,args_tmp['Rgrid'].max()**2])
 			species.chunk_coords(SimDom, position='cntr',)
+
+	def drop_snap(self,fname='./snap_',verbose=False):
+		fname += time.ctime().replace(' ','_').replace(':','-')+'.hdf5'
+		myf = h5py.File(fname, mode='w')
+		i=0
+		for solver in self.Solvers:
+			name = '/solver'+str(i)+'/'
+			for key in solver.Data.keys():
+				type_loc = type(solver.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				myf[name+'Data/'+key] = solver.Data[key]
+
+			for key in solver.Args.keys():
+				type_loc = type(solver.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				myf[name+'Args/'+key] = solver.Args[key]
+			i+=1
+		myf['/NumSolvers'] = i
+
+		i=0
+		for specie in self.Particles:
+			name = '/specie'+str(i)+'/'
+			for key in specie.Data.keys():
+				type_loc = type(specie.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				myf[name+'Data/'+key] = specie.Data[key]
+			for key in specie.Args.keys():
+				type_loc = type(specie.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				myf[name+'Args/'+key] = specie.Args[key]
+			i+=1
+		myf['/NumSpecies'] = i
+		myf['/NumThreads'] = int(os.environ['OMP_NUM_THREADS'])
+		myf.close()
+		return fname
+
+	def read_snap(self, fname='./test.hdf5',verbose=False):
+		myf = h5py.File(fname,mode='r')
+		NumSpecies = myf['NumSpecies'].value
+		NumSolvers = myf['NumSolvers'].value
+		for i in range(NumSolvers):
+			solver = self.Solvers[i]
+			name = '/solver'+str(i)+'/'
+			for key in solver.Data.keys():
+				type_loc = type(solver.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				solver.Data[key] = myf[name+'Data/'+key].value
+			for key in solver.Args.keys():
+				type_loc = type(solver.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				solver.Args[key] = myf[name+'Args/'+key].value
+
+		for i in range(NumSpecies):
+			specie = self.Particles[i]
+			name = '/specie'+str(i)+'/'
+			for key in specie.Data.keys():
+				type_loc = type(specie.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				specie.Data[key] = myf[name+'Data/'+key].value
+			for key in specie.Args.keys():
+				type_loc = type(specie.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				specie.Args[key] = myf[name+'Args/'+key].value

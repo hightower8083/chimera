@@ -11,12 +11,13 @@ Ntheta = 60
 inpt = __import__(sys.argv[1])
 solver=inpt.solver
 electrons = inpt.electrons
-specie_in = inpt.electrons_in
-BoxGrid = inpt.BoxGrid
-PlasmaGrid = inpt.PlasmaGrid
-dt =inpt.dt
+
+specie_in =  inpt.electrons.Configs#inpt.electrons_in
+dt =inpt.solver.Configs['dt'] #inpt.dt
 MovingFrame = inpt.MovingFrame
-solver = inpt.solver
+BoxGrid = inpt.solver.Configs['Grid']
+PlasmaGrid = inpt.electrons.Configs['Grid']
+
 out_folder = inpt.out_folder
 if 'Velocity' in MovingFrame:
 	vb = MovingFrame['Velocity']

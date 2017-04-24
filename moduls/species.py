@@ -82,6 +82,8 @@ class Specie:
 		self.Data['weights'] = np.zeros((0,),order='F')
 		self.Data['coords_halfstep'] = np.zeros_like(self.Data['coords'])
 		self.Data['momenta'] = np.zeros_like(self.Data['coords'])
+		if 'KeepInitPos' in self.Configs['Features']:
+			self.Data['coords_init'] = np.zeros((3,0),order='F')
 
 	def gen_parts(self,Domain = None,Xsteps=None,ProfileFunc=None):
 		Xgrid = self.Args['Xgrid']
@@ -158,6 +160,9 @@ class Specie:
 		self.Data['momenta'][:,-Num2add:] = momenta
 		self.Data['weights'].resize((Num2actl+Num2add,), refcheck=False)
 		self.Data['weights'][-Num2add:] = weights
+		if 'KeepInitPos' in self.Configs['Features']:
+			self.Data['coords_init'].resize((3,Num2actl+Num2add), refcheck=False)
+			self.Data['coords_init'][:,-Num2add:] = coords
 
 	def make_field(self):
 		if 'Still' in self.Configs['Features']: return
@@ -223,18 +228,16 @@ class Specie:
 				index2stay = index2stay.argsort()[go_out:]
 				num2stay = index2stay.shape[0]
 
-			self.Data['coords'] = chimera.align_data_vec(\
-			  self.Data['coords'],index2stay)
-			self.Data['coords_halfstep'] = chimera.align_data_vec(
-			  self.Data['coords_halfstep'],index2stay)
-			self.Data['momenta'] = chimera.align_data_vec(\
-			  self.Data['momenta'],index2stay)
+			comps = ['coords','coords_halfstep','momenta']
+			if 'KeepInitPos' in self.Configs['Features']:
+				comps += ['coords_init']
+			for comp in comps:
+				self.Data[comp] = chimera.align_data_vec(\
+				  self.Data[comp],index2stay)
+				self.Data[comp].resize((3,num2stay), refcheck=False)
+
 			self.Data['weights'] = chimera.align_data_scl(\
 			  self.Data['weights'],index2stay)
-
-			self.Data['coords'].resize((3,num2stay), refcheck=False)
-			self.Data['coords_halfstep'].resize((3,num2stay), refcheck=False)
-			self.Data['momenta'].resize((3,num2stay), refcheck=False)
 			self.Data['weights'].resize((num2stay,), refcheck=False)
 
 	def damp_particles(self,wind):
@@ -252,19 +255,18 @@ class Specie:
 			index2stay,num2stay = chimera.sortpartsout(self.Data['coords'],SimDom)
 			index2stay = index2stay[:num2stay]
 
-		self.Data['coords'] = chimera.align_data_vec(\
-		  self.Data['coords'],index2stay)
-		self.Data['coords_halfstep'] = chimera.align_data_vec(
-		  self.Data['coords_halfstep'],index2stay)
-		self.Data['momenta'] = chimera.align_data_vec(\
-		  self.Data['momenta'],index2stay)
+		comps = ['coords','coords_halfstep','momenta']
+		if 'KeepInitPos' in self.Configs['Features']:
+			comps += ['coords_init']
+		for comp in comps:
+			self.Data[comp] = chimera.align_data_vec(\
+			  self.Data[comp],index2stay)
+			self.Data[comp].resize((3,num2stay), refcheck=False)
+
 		self.Data['weights'] = chimera.align_data_scl(\
 		  self.Data['weights'],index2stay)
-
-		self.Data['coords'].resize((3,num2stay), refcheck=False)
-		self.Data['coords_halfstep'].resize((3,num2stay), refcheck=False)
-		self.Data['momenta'].resize((3,num2stay), refcheck=False)
 		self.Data['weights'].resize((num2stay,), refcheck=False)
+
 
 	def get_dens_on_grid(self,Nko=0):
 		VGrid = 2*np.pi*self.Args['dx']*self.Args['dr']*self.Args['Rgrid']
