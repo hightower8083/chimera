@@ -98,7 +98,6 @@ class Solver:
 		for jm in np.arange(Mmin,Mmax+1):
 			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
 			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
-		for jm in np.arange(Mmin,Mmax+1):
 			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
 			In [:,:,jm] = inv(Out[:,:,jm])
 
@@ -307,6 +306,7 @@ class Solver:
 
 	def poiss_corr(self):
 		if 'NoPoissonCorrection' in self.Configs['Features']: return
+#		self.divG_clean()
 		for corr in range(poiss_corr_num):
 			self.Data['vec_fb'][:] = self.Data['J_fb']
 			self.FBGradDiv()
@@ -322,7 +322,6 @@ class Solver:
 				  self.Args['PoissFact'])
 				self.Data['J_fb'] = chimera.omp_add_vec(self.Data['J_fb'],\
 				  self.Data['vec_fb'])
-		self.divG_clean()
 
 	def maxwell_solver_stat(self,px0):
 		if 'SpaceCharge' not in self.Configs['Features'] \
@@ -472,8 +471,8 @@ class Solver:
 	def get_damp_profile(self,Lf,config='left'):
 		Nfilt = int(Lf/self.Args['dx'])
 		flt_gr = np.arange(Nfilt)
-		filt_shape = (flt_gr>=0.75*Nfilt)*\
-		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))**2
+		filt_shape = (flt_gr>=0.5*Nfilt)*\
+		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.5*Nfilt)/(0.5*Nfilt)))**2
 		filt = np.ones(self.Args['Nx'])
 		if config=='left':
 			filt[:Nfilt] = filt_shape
@@ -502,14 +501,6 @@ class Solver:
 			  np.empty_like(self.Data['vec_fb']),self.Data['vec_fb'],\
 			  *self.Args['FBDiff'])
 
-	def divG_clean(self):
-		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
-		self.FBGradDiv()
-		self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'],\
-		  self.Args['PoissFact'])
-		self.Data['EG_fb'][:,:,:,3:] = chimera.omp_add_vec(\
-		  self.Data['EG_fb'][:,:,:,3:],self.Data['vec_fb'])
-
 	def div_clean(self,vec):
 		self.Data['vec_fb'][:] = vec
 		self.FBGradDiv()
@@ -519,6 +510,14 @@ class Solver:
 		return vec
 
 #####################################################################
+
+	def divG_clean(self):
+		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
+		self.FBGradDiv()
+		self.Data['vec_fb'] = chimera.omp_mult_vec(self.Data['vec_fb'],\
+		  self.Args['PoissFact'])
+		self.Data['EG_fb'][:,:,:,3:] = chimera.omp_add_vec(\
+		  self.Data['EG_fb'][:,:,:,3:],self.Data['vec_fb'])
 
 	def B2G_FBRot(self):
 		if 'KxShift' in self.Configs:
