@@ -4,7 +4,7 @@ from scipy.special import jn_zeros,jn,j1
 from scipy.constants import m_e,c, elementary_charge, epsilon_0
 import chimera.moduls.fimera as chimera
 
-poiss_corr_num = 3
+poiss_corr_num = 2
 
 class Solver:
 	def __init__(self,solver_in):
@@ -53,63 +53,24 @@ class Solver:
 		RgridFull = dr*(np.arange(Nr)-0.5)
 		lengthR = RgridFull[-1] + dr
 
-####################
-		if 'KxShift' in self.Configs:
-			Mmin    , Mmax    , Mtot     = -Nko-1, Nko+1 , 2*Nko+3
-			Mmin_ext, Mmax_ext, Mtot_ext = Mmin-1, Mmax+1, Mtot+2
-		else:
-			Mmin    , Mmax    , Mtot     = 0, Nko+1 , Nko+2
-			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
-
-		kr   = np.zeros((Nkr,Mtot_ext))
-		kr_g = np.zeros((Nx,Nkr,Mtot ))
-		w    = np.zeros((Nx,Nkr,Mtot ))
-		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
-		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
-		for jm in np.arange(Mmin_ext,Mmax_ext+1):
-			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
-		for jm in np.arange(Mmin,Mmax+1):
-			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
-			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
-			In = inv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
-			DpS2S[:,:,jm] = In.dot(0.5*kr[:,    jm+1 ][None,:]*\
-			  jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
-			DmS2S[:,:,jm] = In.dot(0.5*kr[:,abs(jm-1)][None,:]*\
-			  jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
-		if 'KxShift' in self.Configs:
-			DpS2S = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
-			DmS2S = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
-###################
-
-		if 'KxShift' in self.Configs:
-			Mmin    , Mmax    , Mtot     = -Nko  , Nko   , 2*Nko+1
-			Mmin_ext, Mmax_ext, Mtot_ext = Mmin-1, Mmax+1, Mtot+2
-		else:
-			Mmin    , Mmax    , Mtot     = 0, Nko   , Nko+1
-			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
-
-		kr   = np.zeros((Nkr,Mtot_ext))
-		kr_g = np.zeros((Nx,Nkr,Mtot ))
-		w    = np.zeros((Nx,Nkr,Mtot ))
-		Out    = np.zeros((Nkr,Nkr,Mtot))
-		In     = np.zeros((Nkr,Nkr,Mtot))
-		for jm in np.arange(Mmin_ext,Mmax_ext+1):
-			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
-		for jm in np.arange(Mmin,Mmax+1):
-			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
-			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
-			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
-			In [:,:,jm] = inv(Out[:,:,jm])
-
-		if ('KxShift' in self.Configs) and (Nko>0):
-			Out = np.concatenate((Out[:,:,Mmin:],Out[:,:,:Mmax+1]), axis=-1)
-			In = np.concatenate((In[:,:,Mmin:], In[:,:,:Mmax+1]), axis=-1)
-			w = np.concatenate((w[:,:,Mmin:],w[:,:,:Mmax+1]), axis=-1)
-			kr_g = np.concatenate((kr_g[:,:,Mmin:],kr_g[:,:,:Mmax+1]),axis=-1)
-			kr = np.concatenate((kr[:  ,Mmin:], kr[:,:Mmax+1]),axis=-1)
-
 		VGrid = 2*np.pi*dx*dr*RgridFull
 		VGrid = (VGrid+(RgridFull==0))**-1*(RgridFull>0.0)
+
+		self.Args = {\
+		  'leftX':leftX,'rightX':rightX,\
+		  'kx0':kx0,'kx_env':kx_env,'kx':kx,\
+		  'Nkr':Nkr,'Nx':Nx,'Nko':Nko,\
+		  'Xgrid':Xgrid,'RgridFull':RgridFull,\
+		  'dkx':dkx,'dt':dt,'dx':dx,'dr':dr,\
+		  'VGrid':VGrid,'lengthR':lengthR}
+
+		In,Out,DpS2S,DmS2S,w,kr,kr_g,kx_g,Mmin,Mmax,Mtot = \
+		  self.get_spectral_operators(ext=1)
+		In,Out,DpS2S_,DmS2S_,w,kr,kr_g,kx_g,Mmin,Mmax,Mtot = \
+		  self.get_spectral_operators(ext=0)
+		del DpS2S_, DmS2S_
+
+		Mtot = In.shape[-1]
 		InCurr = In*VGrid[None,1:,None]
 
 		if 'Rcut' in self.Configs:
@@ -118,7 +79,7 @@ class Solver:
 			InCurr = InCurr[:,:indRcut-1]
 			OutFull=  Out.copy()
 			Out    =  Out[:indRcut-1]
-			print( 'Rgrid is cut after {:.5g}'.format(self.Configs['Rcut']))
+			print('Rgrid is cut after {:.5g}'.format(self.Configs['Rcut']))
 		else:
 			OutFull =  Out
 			Rgrid  = RgridFull
@@ -136,13 +97,12 @@ class Solver:
 		In = np.asfortranarray(np.swapaxes(In,0,1))
 		Out = np.asfortranarray(np.swapaxes(Out,0,1))
 
-		self.Args = {'leftX':leftX,'rightX':rightX,\
-		  'lowerR':(Rgrid*(Rgrid>=0)).min(),'upperR':Rgrid.max(),\
-		  'kx_g':kx_g,'kr_g':kr_g,'w':w,'kx0':kx0,'kx_env':kx_env,\
-		  'Nkr':Nkr,'Nx':Nx,'Nko':Nko, 'Xgrid':Xgrid,'Rgrid':Rgrid,\
-		  'lengthR':lengthR,'dkx':dkx,'dt':dt,'dx':dx,'dr':dr,\
-		  'kx':kx,'VGrid':VGrid,'RgridFull':RgridFull}
-
+		self.Args['Rgrid'] = Rgrid
+		self.Args['lowerR'] = (Rgrid*(Rgrid>=0)).min()
+		self.Args['upperR'] = Rgrid.max()
+		self.Args['kx_g'] = kx_g
+		self.Args['kr_g'] = kr_g
+		self.Args['w'] = w
 		self.Args['FBDiff'] = (DpS2S,DmS2S,kx)
 		self.Args['PoissFact'] = np.asfortranarray(w**-2)
 
@@ -151,64 +111,9 @@ class Solver:
 		  * jn(np.abs(np.arange(Mmin,Mmax+1)[None,None,:])+1,kr_g*lengthR)**2
 
 		if 'KxShift' in self.Configs:
-			cutafter = 0.85
-			fu_bandpass = lambda x : (x<cutafter)+(x>=cutafter)\
-			  * np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
-			filt_bandpass = fu_bandpass(np.abs(kx_env) \
-			  / np.abs(kx_env.max()))[:,None,None]
-			filt_antialias = np.ones_like(filt_bandpass)
-
-			if 'NoAntiEcho' not in self.Configs['Features']:
-				print( "Echo suppression is actived (to be careful)")
-				print( "To disactivate add 'NoAntiEcho' to solvers 'Features'")
-				print( "To change AntiEcho filter strengths,\n", \
-				  " set 'AntiEchoStrength' in solvers 'Features'")
-
-				if 'AntiEchoStrength' in self.Configs['Features']:
-					ae = self.Configs['Features']['AntiEchoStrength']
-				else:
-					ae = 2
-
-				num_echoes = np.int(np.abs(kx).max()/np.abs(kx_env).max())+1
-				cell_echos = np.abs(kx_env).max()/kx0*np.arange(num_echoes)-1.
-				full_band = np.array([kx.min()/kx0, kx.max()/kx0])-1.
-
-				fu_antialias = lambda x, x0, ae0 :\
-				  1-np.exp(-(x-x0)**2/(ae0*(x0+1.)/Nx)**2)
-
-				echo_ind = 0
-				echo_order = 0
-				for cellecho in cell_echos:
-					echo_order+=1
-					if cellecho>full_band[0] and cellecho<full_band[1]:
-						ech = cellecho/abs(full_band).max()
-
-						echo_str = '  * {0:d}-th grid echo at {1:.5g} '\
-						  .format(echo_order, ech)
-
-						if type(ae)==list or type(ae)==tuple:
-							ae_loc = ae[echo_ind]
-						else:
-							ae_loc = ae
-						echo_ind +=1
-						if abs(cellecho)/abs(full_band).max()<0.4:
-							echo_str += '(close to resonance) '
-
-						if ae_loc <= 0:
-							echo_str += 'no correction'
-							print( echo_str)
-							continue
-
-						filt_antialias *= fu_antialias(\
-						  kx/kx0-1,cellecho,ae_loc)[:,None,None]
-
-						echo_str += 'correcting with strength {0:g}'.\
-						  format(ae_loc)
-						print( echo_str)
-
+			filt_tot = self.antialias()
 			self.Args['DepFact'] = np.asfortranarray((2*np.pi)**2/Nx*\
-			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_bandpass\
-			  * filt_antialias)
+			  np.cos(0.5*np.pi*kr_g/kr_g.max(0).max(0))**2*filt_tot)
 			self.Args['DepProj']   = (Rgrid,1./dx,1./dr,kx0)
 			self.Args['FBCurrIn']  = (kx_env,InCurr)
 			self.Args['FBIn']      = (kx_env,In)
@@ -306,7 +211,6 @@ class Solver:
 
 	def poiss_corr(self):
 		if 'NoPoissonCorrection' in self.Configs['Features']: return
-#		self.divG_clean()
 		for corr in range(poiss_corr_num):
 			self.Data['vec_fb'][:] = self.Data['J_fb']
 			self.FBGradDiv()
@@ -468,28 +372,21 @@ class Solver:
 		self.Data['vec_fb'][:] = 0.0
 		self.Data['scl_fb'][:] = 0.0
 
-	def get_damp_profile(self,Lf,config='left'):
-		Nfilt = int(Lf/self.Args['dx'])
+	def get_damp_profile(self,Lf):
+		Nfilt = int(Lf)
 		flt_gr = np.arange(Nfilt)
-		filt_shape = (flt_gr>=0.5*Nfilt)*\
-		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.5*Nfilt)/(0.5*Nfilt)))**2
-		filt = np.ones(self.Args['Nx'])
-		if config=='left':
-			filt[:Nfilt] = filt_shape
-		elif config=='right':
-			filt[-Nfilt:] = filt_shape[::-1]
-		elif config=='both':
-			filt[:Nfilt] = filt_shape
-			filt[-Nfilt:] = filt_shape[::-1]
-		return filt
+		filt_shape = (flt_gr>=0.75*Nfilt)*\
+		  (0.5-0.5*np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))**2
+		return filt_shape
 
-	def damp_field(self):
+	def damp_field(self,config='left'):
+		mode = {'left':0,'right':1,'both':2}
 		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(\
 		  self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],self.Args['kx'],\
-		  self.Args['damp_profile'])
+		  self.Args['damp_profile'], mode[config])
 		self.Data['EG_fb'][:,:,:,3:] = chimera.fb_filtr(\
 		  self.Data['EG_fb'][:,:,:,3:],self.Args['leftX'],self.Args['kx'],\
-		  self.Args['damp_profile'])
+		  self.Args['damp_profile'], mode[config])
 
 	def FBRot(self):
 		if 'KxShift' in self.Configs:
@@ -509,6 +406,148 @@ class Solver:
 		vec = chimera.omp_add_vec(vec,self.Data['vec_fb'])
 		return vec
 
+	def B2G_FBRot(self):
+		if 'KxShift' in self.Configs:
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(\
+			  self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+		else:
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(\
+			  self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
+
+	def antialias(self):
+		kx_env, kx, kx0, Nx = \
+		  [self.Args[key] for key in ['kx_env', 'kx', 'kx0','Nx']]
+		cutafter = 0.85
+		fu_bandpass = lambda x : (x<cutafter)+(x>=cutafter)\
+		* np.cos(np.pi/2*(x-cutafter)/(1-cutafter))**2
+		filt_bandpass = fu_bandpass(np.abs(kx_env) \
+		/ np.abs(kx_env.max()))[:,None,None]
+		filt_antialias = np.ones_like(filt_bandpass)
+
+		if 'NoAntiEcho' not in self.Configs['Features']:
+			print( "Echo suppression is actived (to be careful)")
+			print( "To disactivate add 'NoAntiEcho' to solvers 'Features'")
+			print( "To change AntiEcho filter strengths,\n", \
+			" set 'AntiEchoStrength' in solvers 'Features'")
+
+			if 'AntiEchoStrength' in self.Configs['Features']:
+				ae = self.Configs['Features']['AntiEchoStrength']
+			else:
+				ae = 2
+
+			num_echoes = np.int(np.abs(kx).max()/np.abs(kx_env).max())+1
+			cell_echos = np.abs(kx_env).max()/kx0*np.arange(num_echoes)-1.
+			full_band = np.array([kx.min()/kx0, kx.max()/kx0])-1.
+
+			fu_antialias = lambda x, x0, ae0 :\
+			1-np.exp(-(x-x0)**2/(ae0*(x0+1.)/Nx)**2)
+
+			echo_ind = 0
+			echo_order = 0
+			for cellecho in cell_echos:
+				echo_order+=1
+				if cellecho>full_band[0] and cellecho<full_band[1]:
+					ech = cellecho/abs(full_band).max()
+
+					echo_str = '  * {0:d}-th grid echo at {1:.5g} '\
+					.format(echo_order, ech)
+
+					if type(ae)==list or type(ae)==tuple:
+						ae_loc = ae[echo_ind]
+					else:
+						ae_loc = ae
+					echo_ind +=1
+					if abs(cellecho)/abs(full_band).max()<0.4:
+						echo_str += '(close to resonance) '
+
+					if ae_loc <= 0:
+						echo_str += 'no correction'
+						print( echo_str)
+						continue
+
+					filt_antialias *= fu_antialias(\
+					kx/kx0-1,cellecho,ae_loc)[:,None,None]
+
+					echo_str += 'correcting with strength {0:g}'.\
+					format(ae_loc)
+					print( echo_str)
+		filt_tot = filt_antialias*filt_bandpass
+		return filt_tot
+
+	def get_spectral_operators(self, ext=0):
+		Nx,Nkr,Nko,lengthR,kx,RgridFull = [self.Args[key] \
+		  for key in ['Nx','Nkr','Nko','lengthR','kx','RgridFull']]
+
+		if 'KxShift' in self.Configs:
+			Mmin    , Mmax    , Mtot     = -Nko-ext, Nko+ext, 2*Nko+1+2*ext
+			Mmin_ext, Mmax_ext, Mtot_ext = Mmin-1, Mmax+1, Mtot+2
+		else:
+			Mmin    , Mmax    , Mtot     = 0, Nko+ext, Nko+1+ext
+			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
+
+		kr   = np.zeros((Nkr,Mtot_ext))
+		kr_g = np.zeros((Nx,Nkr,Mtot ))
+		w    = np.zeros((Nx,Nkr,Mtot ))
+		Out    = np.zeros((Nkr,Nkr,Mtot))
+		In     = np.zeros((Nkr,Nkr,Mtot))
+		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
+		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
+
+		for jm in np.arange(Mmin_ext,Mmax_ext+1):
+			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
+
+		for jm in np.arange(Mmin,Mmax+1):
+			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
+			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
+			Out[:,:,jm] = jn(jm, RgridFull[1:,None]*kr[:,jm][None,:])
+			In [:,:,jm] = inv(Out[:,:,jm])
+			DpS2S[:,:,jm] = In[:,:,jm].dot(0.5*kr[:,    jm+1 ][None,:]*\
+			  jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
+			DmS2S[:,:,jm] = In[:,:,jm].dot(0.5*kr[:,abs(jm-1)][None,:]*\
+			  jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
+
+		if ('KxShift' in self.Configs) and (Nko>0):
+			Out = np.concatenate((Out[:,:,Mmin:],Out[:,:,:Mmax+1]), axis=-1)
+			In = np.concatenate((In[:,:,Mmin:], In[:,:,:Mmax+1]), axis=-1)
+			DpS2S = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
+			DmS2S = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
+			w = np.concatenate((w[:,:,Mmin:],w[:,:,:Mmax+1]), axis=-1)
+			kr_g = np.concatenate((kr_g[:,:,Mmin:],kr_g[:,:,:Mmax+1]),axis=-1)
+			kr = np.concatenate((kr[:  ,Mmin:], kr[:,:Mmax+1]),axis=-1)
+
+		return In,Out,DpS2S,DmS2S,w,kr,kr_g,kx_g,Mmin,Mmax,Mtot
+
+####################
+#		if 'KxShift' in self.Configs:
+#			Mmin    , Mmax    , Mtot     = -Nko-1, Nko+1 , 2*Nko+3
+#			Mmin_ext, Mmax_ext, Mtot_ext = Mmin-1, Mmax+1, Mtot+2
+#		else:
+#			Mmin    , Mmax    , Mtot     = 0, Nko+1 , Nko+2
+#			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
+
+#		kr   = np.zeros((Nkr,Mtot_ext))
+#		kr_g = np.zeros((Nx,Nkr,Mtot ))
+#		w    = np.zeros((Nx,Nkr,Mtot ))
+#		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
+#		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
+#		for jm in np.arange(Mmin_ext,Mmax_ext+1):
+#			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
+#		for jm in np.arange(Mmin,Mmax+1):
+#			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
+#			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
+#			In = inv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
+#			DpS2S[:,:,jm] = In.dot(0.5*kr[:,    jm+1 ][None,:]*\
+#			  jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
+#			DmS2S[:,:,jm] = In.dot(0.5*kr[:,abs(jm-1)][None,:]*\
+#			  jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
+#		if 'KxShift' in self.Configs:
+#			DpS2S = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
+#			DmS2S = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
+###################
+
+
+
+
 #####################################################################
 
 	def divG_clean(self):
@@ -518,14 +557,6 @@ class Solver:
 		  self.Args['PoissFact'])
 		self.Data['EG_fb'][:,:,:,3:] = chimera.omp_add_vec(\
 		  self.Data['EG_fb'][:,:,:,3:],self.Data['vec_fb'])
-
-	def B2G_FBRot(self):
-		if 'KxShift' in self.Configs:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot_env(\
-			  self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
-		else:
-			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_rot(\
-			  self.Data['EG_fb'][:,:,:,3:],self.Data['B_fb'],*self.Args['FBDiff'])
 
 	def test_calibration(self):
 		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,:3]
