@@ -58,10 +58,10 @@ type(C_PTR) :: plan_in
 !f2py intent(in,out) :: scl_fb
 !f2py intent(hide) :: nkx,nr,nkO,nkr
 
-plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,&
-                           FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 scl_fb = 0.0d0
 shiftX = dcos(leftX*kx) - ii*dsin(leftX*kx)
+plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,&
+                           FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 
 !$omp parallel default(shared), private(iO,Aifft,Afft,ik,ir)
 do iO = 1,nkO
@@ -210,21 +210,21 @@ enddo
 call fftw_destroy_plan(plan_out)
 end subroutine
 
-subroutine fb_filtr(vec,leftX,kx,filtr,nkx,nkr,nkO)
+subroutine fb_filtr(vec,leftX,kx,filtr,modefilt,nkx,nkr,nkO,nxfilt)
 use, intrinsic :: iso_c_binding
 implicit none
 include "fftw3.f03"
-integer, intent(in) :: nkx,nkr,nkO
+integer, intent(in) :: nkx,nkr,nkO,nxfilt,modefilt
 complex(kind=8),intent(inout) :: vec(nkx,nkr,nkO,3)
-real (kind=8), intent(in)  :: leftX,kx(nkx),filtr(nkx)
+real (kind=8), intent(in)  :: leftX,kx(nkx),filtr(nxfilt)
 integer         :: l,ik,iO
 complex(kind=8) :: ii=(0.0d0,1.0d0),shiftX(nkx),shiftX_inv(nkx)
 complex(C_DOUBLE_COMPLEX) :: Afft(nkx),Aifft(nkx)
 type(C_PTR) :: plan_in, plan_out
 
-!f2py intent(in) :: leftX,kx,filtr
+!f2py intent(in) :: leftX,kx,filtr,modefilt
 !f2py intent(in,out) :: vec
-!f2py intent(hide) :: nkx,nkr,nkO
+!f2py intent(hide) :: nkx,nkr,nkO,nxfilt
 
 shiftX = dcos(leftX*kx) + ii*dsin(leftX*kx)
 shiftX_inv = 1.0d0/(DBLE(nkx)*shiftX)
@@ -234,20 +234,58 @@ plan_in = fftw_plan_dft_1d(nkx,Aifft,Afft,FFTW_FORWARD,&
 plan_out = fftw_plan_dft_1d(nkx,Afft,Aifft,FFTW_BACKWARD,&
                             FFTW_ESTIMATE+FFTW_DESTROY_INPUT)
 
-!$omp parallel default(shared), private(iO,l,Aifft,Afft,ik)
-do l=1,3
-  do iO=1,nkO
-    !$omp do schedule(static)
-    do ik=1,nkr
-      Afft = vec(:,ik,iO,l)*shiftX
-      call dfftw_execute_dft(plan_out,Afft,Aifft)
-      call dfftw_execute_dft(plan_in,Aifft*filtr,Afft)
-      vec(:,ik,iO,l) = Afft*shiftX_inv
+
+if (modefilt .eq. 0) then
+  !$omp parallel default(shared), private(iO,l,Aifft,Afft,ik)
+  do l=1,3
+    do iO=1,nkO
+      !$omp do schedule(static)
+      do ik=1,nkr
+        Afft = vec(:,ik,iO,l)*shiftX
+        call dfftw_execute_dft(plan_out,Afft,Aifft)
+        Aifft(1:nxfilt) = Aifft(1:nxfilt)*filtr
+        call dfftw_execute_dft(plan_in,Aifft,Afft)
+        vec(:,ik,iO,l) = Afft*shiftX_inv
+      enddo
+      !$omp end do
     enddo
-    !$omp end do
   enddo
-enddo
-!$omp end parallel
+  !$omp end parallel
+elseif (modefilt .eq. 1) then
+  !$omp parallel default(shared), private(iO,l,Aifft,Afft,ik)
+  do l=1,3
+    do iO=1,nkO
+      !$omp do schedule(static)
+      do ik=1,nkr
+        Afft = vec(:,ik,iO,l)*shiftX
+        call dfftw_execute_dft(plan_out,Afft,Aifft)
+        Aifft(nkx-nxfilt:nkx) = Aifft(nkx-nxfilt:nkx)*filtr(nxfilt:1:-1)
+        call dfftw_execute_dft(plan_in,Aifft,Afft)
+        vec(:,ik,iO,l) = Afft*shiftX_inv
+      enddo
+      !$omp end do
+    enddo
+  enddo
+  !$omp end parallel
+elseif (modefilt .eq. 2) then
+  !$omp parallel default(shared), private(iO,l,Aifft,Afft,ik)
+  do l=1,3
+    do iO=1,nkO
+      !$omp do schedule(static)
+      do ik=1,nkr
+        Afft = vec(:,ik,iO,l)*shiftX
+        call dfftw_execute_dft(plan_out,Afft,Aifft)
+        Aifft(1:nxfilt) = Aifft(1:nxfilt)*filtr
+        Aifft(nkx-nxfilt:nkx) = Aifft(nkx-nxfilt:nkx)*filtr(nxfilt:1:-1)
+        call dfftw_execute_dft(plan_in,Aifft,Afft)
+        vec(:,ik,iO,l) = Afft*shiftX_inv
+      enddo
+      !$omp end do
+    enddo
+  enddo
+  !$omp end parallel
+endif
+
 call fftw_destroy_plan(plan_out)
 call fftw_destroy_plan(plan_in)
 end subroutine

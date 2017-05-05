@@ -107,7 +107,7 @@ class Specie:
 				ire = (Rgrid<p_up).sum()+1
 			Rgrid = Rgrid[irb:ire]
 		elif Xsteps!=None:
-			Xgrid = Xgrid[-Xsteps:]
+			Xgrid = Xgrid[-2*Xsteps:-Xsteps]
 
 		coords = np.zeros((4,Xgrid.shape[0]*Rgrid.shape[0]*self.Num_p),order='F')
 		if 'FixedCell' in self.Configs:
@@ -211,43 +211,20 @@ class Specie:
 			  self.Data['weights'],self.Data['weights']),axis=0)
 			self.Data['weights'] *= 0.5
 
-	def chunk_coords(self,SimDom,position=None):
-		if 'Xchunked' in self.Configs:
-			if self.Data['coords'].shape[-1] == 0: return
-
-			if position=='cntr':
-				index2stay,self.chunks,go_out  = chimera.chunk_coords_boundaries(\
-				  self.Data['coords_halfstep'],SimDom,self.Args['Xgrid'],\
-				  self.Configs['Xchunked'][0])
-				index2stay = index2stay.argsort()[go_out:]
-				num2stay = index2stay.shape[0]
-			else:
-				index2stay,self.chunks,go_out  = chimera.chunk_coords_boundaries(\
-				  self.Data['coords'],SimDom,self.Args['Xgrid'],\
-				  self.Configs['Xchunked'][0])
-				index2stay = index2stay.argsort()[go_out:]
-				num2stay = index2stay.shape[0]
-
-			comps = ['coords','coords_halfstep','momenta']
-			if 'KeepInitPos' in self.Configs['Features']:
-				comps += ['coords_init']
-			for comp in comps:
-				self.Data[comp] = chimera.align_data_vec(\
-				  self.Data[comp],index2stay)
-				self.Data[comp].resize((3,num2stay), refcheck=False)
-
-			self.Data['weights'] = chimera.align_data_scl(\
-			  self.Data['weights'],index2stay)
-			self.Data['weights'].resize((num2stay,), refcheck=False)
-
-	def damp_particles(self,wind):
+	def chunk_and_damp(self,wind=None,SimDom = None,position='stag'):
 		if self.Data['coords'].shape[-1] == 0: return
-		SimDom = np.asfortranarray([self.Args['leftX']+wind['AbsorbLayer'],\
-		  self.Args['rightX'],0.0, self.Args['upperR']**2])
+		comp = {'cntr':'coords_halfstep','stag':'coords'}
+		if wind==None:
+			wind = {'Features':(),'AbsorbLayer':0.0}
+
+		if type(SimDom) not in (list,tuple,np.ndarray,dict,set):
+			SimDom = np.asfortranarray([\
+			  self.Args['leftX'] + wind['AbsorbLayer']*self.Args['dx'],\
+			  self.Args['rightX'], 0.0, self.Args['upperR']**2])
 
 		if 'Xchunked' in self.Configs and 'NoSorting' not in wind['Features']:
 			index2stay,self.chunks,go_out  = chimera.chunk_coords_boundaries(\
-			  self.Data['coords'],SimDom,self.Args['Xgrid'],\
+			  self.Data[comp[position]],SimDom,self.Args['Xgrid'],\
 			  self.Configs['Xchunked'][0])
 			index2stay = index2stay.argsort()[go_out:]
 			num2stay = index2stay.shape[0]
@@ -266,7 +243,6 @@ class Specie:
 		self.Data['weights'] = chimera.align_data_scl(\
 		  self.Data['weights'],index2stay)
 		self.Data['weights'].resize((num2stay,), refcheck=False)
-
 
 	def get_dens_on_grid(self,Nko=0):
 		VGrid = 2*np.pi*self.Args['dx']*self.Args['dr']*self.Args['Rgrid']
@@ -308,33 +284,3 @@ class Specie:
 		self.Data['coords'][1:3] = self.Data['coords'][1:3] \
 		  - self.Data['momenta'][1:3]/pzmean*x_foc
 		self.Data['coords_halfstep'][:] = self.Data['coords']
-
-	def chunk_coords_old(self,position=None):
-		if 'Xchunked' in self.Configs:
-			if self.Data['coords'].shape[-1] == 0: return
-
-			if position=='cntr':
-				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(\
-				  self.Data['coords_halfstep'],self.Args['Xgrid'],\
-				  self.Configs['Xchunked'][0])
-			else:
-				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(\
-				  self.Data['coords'],self.Args['Xgrid'],\
-				  self.Configs['Xchunked'][0])
-
-			if outright == 0:
-				chnk_ind = chnk_ind.argsort()[outleft:]
-			else:
-				chnk_ind = chnk_ind.argsort()[outleft:-outright]
-			if outleft!=0 or outright !=0:
-				print('particles out', outleft,outright)
-
-			self.Data['coords'] = chimera.align_data_vec(\
-			  self.Data['coords'],chnk_ind)
-			self.Data['coords_halfstep'] = chimera.align_data_vec(\
-			  self.Data['coords_halfstep'],chnk_ind)
-			self.Data['momenta'] = chimera.align_data_vec(\
-			  self.Data['momenta'],chnk_ind)
-			self.Data['weights'] = chimera.align_data_scl(\
-			  self.Data['weights'],chnk_ind)
-
