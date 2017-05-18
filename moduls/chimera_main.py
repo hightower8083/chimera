@@ -27,7 +27,7 @@ class ChimeraRun():
 			if 'TimeActive' not in wind: wind['TimeActive'] = (0.0,np.inf)
 			if 'Velocity'   not in wind: wind['Velocity']   = 1.0
 			if 'TimeStep'   not in wind: wind['TimeStep']   = 1.0
-			if 'Steps'   not in wind: wind['Steps']   = 0
+			if 'Steps'   not in wind: wind['Steps']   = 1
 			if 'Staged' in wind['Features']:
 				wind['shiftX'] = 0.5*wind['Velocity']*wind['TimeStep']\
 				  * wind['Steps']
@@ -49,7 +49,8 @@ class ChimeraRun():
 				args_tmp = self.Particles[0].Args
 			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'], \
 			  0,args_tmp['upperR']**2])
-			species.chunk_and_damp(SimDom=SimDom)
+			if SimDom[0]!=SimDom[1]:
+				species.chunk_and_damp(SimDom=SimDom)
 
 		self.project_current()
 		self.project_density()
