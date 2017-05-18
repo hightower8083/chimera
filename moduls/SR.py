@@ -1,6 +1,7 @@
 import numpy as np
 import chimera.moduls.fimera as chimera
-from scipy.constants import m_e,c, elementary_charge, epsilon_0
+from scipy.constants import m_e,c,elementary_charge,epsilon_0
+from scipy.constants import alpha as alpha_fn
 from time import localtime
 
 class SR:
@@ -28,8 +29,9 @@ class SR:
 		self.Args['theta'] = np.r_[theta_min:theta_max:Nth*1j]
 		self.Args['phi'] = phi_min + (phi_max-phi_min)/Nph*np.arange(Nph)
 
-		if Nom>1: # TO SET UP WITH NON-UNIFORM OMEGA
-			self.Args['dw'] = self.Args['omega'][1]- self.Args['omega'][0]
+		if Nom>1:
+			self.Args['dw'] = self.Args['omega'][1:] - self.Args['omega'][:-1]
+			self.Args['dw'] = np.abs(self.Args['dw'])
 		else:
 			self.Args['dw'] = 1.
 
@@ -81,15 +83,38 @@ class SR:
 			np.save(fname,self.Data[comp])
 		self.Args['step'] = 0 ## TBD
 
+	def get_spectrum(self):
+		if self.Configs['Mode'] == 'incoherent':
+			self.Data['Rad_incoh'] = chimera.sr_calc_incoh_track(\
+			  self.Data['Rad_incoh'], \
+			  self.Data['coords'],self.Data['momenta_prv'],\
+			  self.Data['momenta_nxt'],\
+			  self.Data['weights'], *self.Args['DepFact'])
+
+	def get_spot(self,spect_filter=None):
+		if self.Configs['Mode'] == 'incoherent':
+			spot = self.Data['Rad_incoh'].copy()
+			if spect_filter is not None: spot *= spect_filter
+			spot = 0.5*((spot[1:] + spot[:-1])\
+			  *self.Args['dw'][:,None,None]).sum(0)
+			return spot
+
+	def get_energy(self,spect_filter=None):
+		if self.Configs['Mode'] == 'incoherent':
+			nrg = self.Data['Rad_incoh'].copy()
+			if spect_filter is not None: nrg *= spect_filter
+			nrg = (0.5*(nrg[1:] + nrg[:-1])\
+			  *np.sin(self.Args['theta'][None,:,None])).sum(-1).sum(-1) \
+			  *alpha_fn/(4*np.pi**2)
+			nrg = (nrg*self.Args['dV']).sum()
+		return nrg
+
+
+#############################################################################
+
 	def get_spectrum_ser(self):
 		if self.Configs['Mode'] == 'incoherent':
 			self.Data['Rad_incoh'] = chimera.sr_calc_incoh_track_serial(self.Data['Rad_incoh'], \
-			  self.Data['coords'],self.Data['momenta_prv'],self.Data['momenta_nxt'],\
-			  self.Data['weights'],*self.Args['DepFact'])
-
-	def get_spectrum(self):
-		if self.Configs['Mode'] == 'incoherent':
-			self.Data['Rad_incoh'] = chimera.sr_calc_incoh_track(self.Data['Rad_incoh'], \
 			  self.Data['coords'],self.Data['momenta_prv'],self.Data['momenta_nxt'],\
 			  self.Data['weights'],*self.Args['DepFact'])
 
@@ -105,8 +130,3 @@ class SR:
 			  beam.Data['coords'],beam.Data['momenta_prv'],beam.Data['momenta'],\
 			  beam.Data['weights'],self.Configs['Component'],step,*self.Args['DepFact'])
 
-	def get_energy(self):
-		if self.Configs['Mode'] == 'incoherent':
-			nrg = np.abs(self.Data['Rad_incoh'])**2*self.Args['theta'][None,:,None]*self.Args['dV']
-			nrg = nrg.sum()
-		return nrg
