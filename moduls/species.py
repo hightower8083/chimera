@@ -32,22 +32,19 @@ class Specie:
 			Nx = int(np.round(0.5/dx*(rightX - leftX))*2)
 
 		if Nx>0:
-			leftX = Xgrid[0]
 			Xgrid  = rightX - dx*np.arange(Nx)[::-1]
 		else:
-			leftX = 0.0
-			Xgrid  = np.array([leftX,])
+			Xgrid  = np.array([0,])
+		leftX = Xgrid[0]
 
 		Nr = int(np.round(lengthR/dr))
 		if Nr>0:
 			Rgrid = dr*(np.arange(Nr)-0.5)
-			lowerR = (Rgrid*(Rgrid>=0)).min()
-			upperR = Rgrid.max()
 		else:
-			lowerR = 0.0
-			upperR = 0.0
-			Rgrid = np.array([lowerR,])
+			Rgrid = np.array([0,])
 
+		lowerR = (Rgrid*(Rgrid>=0)).min()
+		upperR = Rgrid.max()
 
 		if 'FixedCell' in self.Configs:
 			self.Num_p = np.prod(self.Configs['FixedCell'])
