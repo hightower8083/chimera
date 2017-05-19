@@ -34,14 +34,14 @@ class Specie:
 		if Nx>0:
 			Xgrid  = rightX - dx*np.arange(Nx)[::-1]
 		else:
-			Xgrid  = np.array([0,])
+			Xgrid  = np.array([0.,])
 		leftX = Xgrid[0]
 
 		Nr = int(np.round(lengthR/dr))
 		if Nr>0:
 			Rgrid = dr*(np.arange(Nr)-0.5)
 		else:
-			Rgrid = np.array([0,])
+			Rgrid = np.array([0.,])
 
 		lowerR = (Rgrid*(Rgrid>=0)).min()
 		upperR = Rgrid.max()
