@@ -165,7 +165,6 @@ do ip=1,np
         do iom=1,nom
           omg = omega(iom)
           if (2.0d0*omg*dt*C2 <= 1.0d0) then
-            ! integral(iom) = integral(iom)+C4*dt2p*exp(ii*omg*C3) use of dt2p is not clear (inherited)
             integral(iom) = integral(iom)+C4*dt*exp(ii*omg*C3)
           endif
         enddo
