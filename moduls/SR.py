@@ -1,7 +1,7 @@
 import numpy as np
 import chimera.moduls.fimera as chimera
-from scipy.constants import m_e,c,elementary_charge,epsilon_0
-from scipy.constants import alpha as alpha_fn
+from scipy.constants import m_e,c,elementary_charge,epsilon_0,hbar
+from scipy.constants import alpha as alpha_fs
 from time import localtime
 
 class SR:
@@ -14,6 +14,8 @@ class SR:
 			self.Configs['Mode']='incoherent'
 		if 'Component' not in self.Configs:
 			self.Configs['Component']=2
+
+		self.chim_norm = 4*np.pi**2*m_e*c**2*epsilon_0*1e6/elementary_charge**2
 
 		(omega_min,omega_max),(theta_min,theta_max), (phi_min,phi_max),\
 		  (Nom,Nth,Nph) = self.Configs['Grid']
@@ -66,12 +68,15 @@ class SR:
 		self.Data['momenta_nxt'] = np.zeros((3,Steps,Nparts),order='F')
 		self.Data['weights'] = beam.Data['weights'].copy()
 		self.Args['step'] = 0
+		beam.Data['momenta_prv'] = beam.Data['momenta'].copy()
+
 
 	def add_track(self,beam):
 		self.Data['coords'][:,self.Args['step']] = beam.Data['coords']
 		self.Data['momenta_prv'][:,self.Args['step']] = beam.Data['momenta_prv']
 		self.Data['momenta_nxt'][:,self.Args['step']] = beam.Data['momenta']
 		self.Args['step'] += 1
+		beam.Data['momenta_prv'][:] = beam.Data['momenta'][:]
 
 	def damp_track(self,out_folder='./'):
 		tt = localtime()
@@ -83,7 +88,7 @@ class SR:
 			np.save(fname,self.Data[comp])
 		self.Args['step'] = 0 ## TBD
 
-	def get_spectrum(self):
+	def calculate_spectrum(self):
 		if self.Configs['Mode'] == 'incoherent':
 			self.Data['Rad_incoh'] = chimera.sr_calc_incoh_track(\
 			  self.Data['Rad_incoh'], \
@@ -91,23 +96,55 @@ class SR:
 			  self.Data['momenta_nxt'],\
 			  self.Data['weights'], *self.Args['DepFact'])
 
-	def get_spot(self,spect_filter=None):
+	def get_full_spectrum(self, spect_filter=None, chim_units=True):
 		if self.Configs['Mode'] == 'incoherent':
-			spot = self.Data['Rad_incoh'].copy()
-			if spect_filter is not None: spot *= spect_filter
-			spot = 0.5*((spot[1:] + spot[:-1])\
-			  *self.Args['dw'][:,None,None]).sum(0)
-			return spot
+			val = alpha_fs/(4*np.pi**2)*self.Data['Rad_incoh']
+			if spect_filter is not None:
+				val *= spect_filter
+			if chim_units is True:
+				val *= self.chim_norm
+			return val
 
-	def get_energy(self,spect_filter=None):
+	def get_energy_spectrum(self, spect_filter = None, chim_units=True):
 		if self.Configs['Mode'] == 'incoherent':
-			nrg = self.Data['Rad_incoh'].copy()
-			if spect_filter is not None: nrg *= spect_filter
-			nrg = (0.5*(nrg[1:] + nrg[:-1])\
-			  *np.sin(self.Args['theta'][None,:,None])).sum(-1).sum(-1) \
-			  *alpha_fn/(4*np.pi**2)
-			nrg = (nrg*self.Args['dV']).sum()
-		return nrg
+			val = self.get_full_spectrum( \
+			  spect_filter=spect_filter, chim_units=chim_units)
+			val = 0.5*self.Args['dth']*self.Args['dph']*( (val[1:] + val[:-1]) \
+			  *np.sin(self.Args['theta'][None,:,None]) ).sum(-1).sum(-1)
+			return val
+
+	def get_spot(self,spect_filter=None, chim_units=True, k0=None):
+		if self.Configs['Mode'] == 'incoherent':
+			val = self.get_full_spectrum(\
+			  spect_filter=spect_filter, chim_units=chim_units)
+			if k0 is None:
+				val = 1e6*np.pi*hbar*c *((val[1:] + val[:-1])\
+				  *self.Args['dw'][:,None,None]).sum(0)
+			else:
+				ax = self.Args['omega']
+				indx = (ax<k0).sum()
+				if np.abs(self.Args['omega'][indx+1]-k0) \
+				  < np.abs(self.Args['omega'][indx]-k0):
+					indx += 1
+
+				val = 2e6*np.pi*hbar*c* val[indx]
+			return val
+
+	def get_energy(self,spect_filter=None, chim_units=True):
+		if self.Configs['Mode'] == 'incoherent':
+			val = self.get_energy_spectrum( \
+			  spect_filter=spect_filter, chim_units=chim_units)
+			val *= 2e6*np.pi*hbar*c
+			val = (val*self.Args['dw']).sum()
+		return val
+
+	def get_spectral_axis(self):
+		if self.Configs['Mode'] == 'incoherent':
+			if 'WavelengthGrid' in self.Configs['Features']:
+				ax = 0.5*(self.Args['wavelengths'][1:] + self.Args['wavelengths'][:-1])
+			else:
+				ax = 0.5*(self.Args['omega'][1:] + self.Args['omega'][:-1])
+			return ax
 
 
 #############################################################################

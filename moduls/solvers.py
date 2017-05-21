@@ -251,7 +251,7 @@ class Solver:
 		self.Data['vec_fb'][:] = self.Data['J_fb']
 		self.FBGradDiv()
 
-		self.Data['J_fb'] = chimera.poiss_corr(\
+		self.Data['J_fb'] = chimera.poiss_corr_stat(\
 		  self.Data['J_fb'], self.Data['vec_fb'],\
 		  self.Data['gradRho_fb_nxt'], \
 		  DT, self.Args['PoissFact'])
