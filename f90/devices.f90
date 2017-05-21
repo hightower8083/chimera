@@ -43,6 +43,59 @@ enddo
 
 end subroutine
 
+subroutine Undul_Mapped_Tap(coord,Fld,t,a0,params,np,nx)
+
+implicit none
+integer, intent(in)        :: np,nx
+real (kind=8), intent(in)  :: t,a0(2,nx),params(5)
+real (kind=8), intent(in)  :: coord(3,np)
+real (kind=8), intent(inout)::Fld(6,np)
+real (kind=8)              :: S0(-1:1),Xleft,Xright,lambda,dx,Lx,taper, &
+                              x_shift, dx_inv,ddx,xp,yp,ku,ampl_tap, &
+                              pi=4.d0*DATAN(1.d0)
+integer                    :: ip,ix
+
+!f2py intent(in)  :: coord,t,a0,params
+!f2py intent(in,out) :: Fld
+!f2py intent(hide):: np,nx
+
+lambda = params(1)
+Xleft  = params(2)
+dx     = params(3)
+Lx     = params(4)
+taper  = params(5)
+
+ku     = 2.d0*pi/lambda
+dx_inv = 1.0d0/dx
+
+Xright= Xleft+nx*dx
+x_shift = 0.5*(nx*dx - Lx)
+
+!$omp parallel default(private) shared(coord,Fld,t,a0,params,np,nx, &
+!$omp   lambda,Xleft,dx,ku,dx_inv,Xright, Lx,taper,x_shift)
+!$omp do schedule(static)
+do ip=1,np
+  xp = coord(1,ip)
+  if ((xp<Xleft+dx) .or. (xp>Xright-dx)) CYCLE
+  yp = coord(2,ip)
+
+  S0 = 0.0d0
+  ix  = FLOOR((xp-Xleft)*dx_inv +0.5d0)
+  ddx = (xp-Xleft)*dx_inv - ix
+  S0(-1) = 0.5d0*(0.5d0-ddx)**2
+  S0( 0) = 0.75d0-ddx**2
+  S0( 1) = 0.5d0*(0.5d0+ddx)**2
+
+  ampl_tap = 1+taper*(coord(1,ip)-x_shift-Xleft-0.5*Lx)/(0.5*Lx)
+
+  Fld(5,ip) = Fld(5,ip) + ampl_tap*SUM(S0*a0(1,ix-1:ix+1))*cosh(ku*yp)
+  Fld(4,ip) = Fld(4,ip) + ampl_tap*SUM(S0*a0(2,ix-1:ix+1))*sinh(ku*yp)
+enddo
+!$omp end do
+!$omp end parallel
+
+end subroutine
+
 subroutine Undul_Analytic_Taper(coord,Fld,t,params,np)
 implicit none
 integer, intent(in) :: np
@@ -79,8 +132,8 @@ do ip=1,np
   ampl = ampl*(1+taper*(coord(1,ip)-X0-0.5*Lx)/(0.5*Lx))
 
   ampl = ampl*a0
-  Fld(5,ip) = Fld(5,ip) + ampl*sin(ku*coord(1,ip))*cosh(ku*coord(2,ip))
-  Fld(4,ip) = Fld(4,ip) + ampl*cos(ku*coord(1,ip))*sinh(ku*coord(2,ip))
+  Fld(5,ip) = Fld(5,ip) + ampl*sin(ku*(coord(1,ip)-X0))*cosh(ku*coord(2,ip))
+  Fld(4,ip) = Fld(4,ip) + ampl*cos(ku*(coord(1,ip)-X0))*sinh(ku*coord(2,ip))
 enddo
 !$omp end do
 !$omp end parallel
@@ -121,8 +174,8 @@ do ip=1,np
   endif
 
   ampl = ampl*a0
-  Fld(5,ip) = Fld(5,ip) + ampl*sin(ku*coord(1,ip))*cosh(ku*coord(2,ip))
-  Fld(4,ip) = Fld(4,ip) + ampl*cos(ku*coord(1,ip))*sinh(ku*coord(2,ip))
+  Fld(5,ip) = Fld(5,ip) + ampl*sin(ku*(coord(1,ip)-X0))*cosh(ku*coord(2,ip))
+  Fld(4,ip) = Fld(4,ip) + ampl*cos(ku*(coord(1,ip)-X0))*sinh(ku*coord(2,ip))
 enddo
 !$omp end do
 !$omp end parallel
