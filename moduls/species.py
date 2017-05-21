@@ -1,7 +1,8 @@
+from __future__ import print_function,division
 import numpy as np
+from scipy.constants import m_e,c,e,epsilon_0
 from inspect import getargspec
 import chimera.moduls.fimera as chimera
-from scipy.constants import m_e,c,e,epsilon_0
 
 class Specie:
 	def __init__(self,PartSpcs):
@@ -14,6 +15,8 @@ class Specie:
 			self.Configs['MomentaMeans'] = (0.0,0.0,0.0)
 		if 'MomentaSpreads' not in self.Configs:
 			self.Configs['MomentaSpreads'] = (0.0,0.0,0.0)
+		if 'Grid' not in self.Configs:
+			self.Configs['Grid'] = ( 0.0, 0.0, 0.0, 1.0, 1.0 )
 
 		if 'Devices' in self.Configs:
 			self.Devices = self.Configs['Devices']
@@ -28,10 +31,20 @@ class Specie:
 		else:
 			Nx = int(np.round(0.5/dx*(rightX - leftX))*2)
 
-		Nr = int(np.round(lengthR/dr))
-		Rgrid = dr*(np.arange(Nr)-0.5)
-		Xgrid  = rightX - dx*np.arange(Nx)[::-1]
+		if Nx>0:
+			Xgrid  = rightX - dx*np.arange(Nx)[::-1]
+		else:
+			Xgrid  = np.array([0.,])
 		leftX = Xgrid[0]
+
+		Nr = int(np.round(lengthR/dr))
+		if Nr>0:
+			Rgrid = dr*(np.arange(Nr)-0.5)
+		else:
+			Rgrid = np.array([0.,])
+
+		lowerR = (Rgrid*(Rgrid>=0)).min()
+		upperR = Rgrid.max()
 
 		if 'FixedCell' in self.Configs:
 			self.Num_p = np.prod(self.Configs['FixedCell'])
@@ -61,8 +74,8 @@ class Specie:
 		self.weight2pC = 4*np.pi**2*m_e*c**2*epsilon_0*1e6/e
 
 		self.Args = {'Nx':Nx,'Nr':Nr,'Xgrid':Xgrid,'Rgrid':Rgrid,\
-		  'leftX':leftX,'rightX':rightX,'lowerR':(Rgrid*(Rgrid>=0)).min(),\
-		  'upperR':Rgrid.max(),'dx':dx,'dr':dr,'NpSlice':Nx*self.Num_p}
+		  'leftX':leftX,'rightX':rightX,'lowerR':lowerR,\
+		  'upperR':upperR,'dx':dx,'dr':dr,'NpSlice':Nx*self.Num_p}
 
 		self.Data = {}
 		self.Data['EB'] = np.zeros((6,0,),order='F')
@@ -70,31 +83,32 @@ class Specie:
 		self.Data['weights'] = np.zeros((0,),order='F')
 		self.Data['coords_halfstep'] = np.zeros_like(self.Data['coords'])
 		self.Data['momenta'] = np.zeros_like(self.Data['coords'])
+		if 'KeepInitPos' in self.Configs['Features']:
+			self.Data['coords_init'] = np.zeros((3,0),order='F')
 
 	def gen_parts(self,Domain = None,Xsteps=None,ProfileFunc=None):
 		Xgrid = self.Args['Xgrid']
 		Rgrid = self.Args['Rgrid']
 
 		if Domain!=None:
-			parts_left, parts_right,parts_rad0,parts_rad1 = Domain
-			if self.Args['leftX']>parts_right or self.Args['rightX']<parts_left\
-			  or parts_rad1<self.Args['lowerR'] or parts_rad0>self.Args['upperR']: 
+			p_left, p_right,p_low,p_up = Domain
+			if self.Args['leftX']>p_right or self.Args['rightX']<p_left\
+			  or p_up<self.Args['lowerR'] or p_low>self.Args['upperR']:
 				return np.zeros((8,0),order='F')
 
-		if Domain!=None:
-			ixb,ixe = (Xgrid<parts_left).sum()-1,(Xgrid<parts_right).sum()+1
+			ixb,ixe = (Xgrid<p_left).sum()-1,(Xgrid<p_right).sum()+1
 			Xgrid = Xgrid[ixb:ixe]
-			if parts_rad0<=Rgrid.min():
+			if p_low<=Rgrid.min():
 				irb=0
 			else:
-				irb=(Rgrid<parts_rad0).sum()-1
-			if parts_rad1>=Rgrid.max():
+				irb=(Rgrid<p_low).sum()-1
+			if p_up>=Rgrid.max():
 				ire = Rgrid.shape[0]
 			else:
-				ire = (Rgrid<parts_rad1).sum()+1
+				ire = (Rgrid<p_up).sum()+1
 			Rgrid = Rgrid[irb:ire]
 		elif Xsteps!=None:
-			Xgrid = Xgrid[-Xsteps:]
+			Xgrid = Xgrid[-2*Xsteps:-Xsteps]
 
 		coords = np.zeros((4,Xgrid.shape[0]*Rgrid.shape[0]*self.Num_p),order='F')
 		if 'FixedCell' in self.Configs:
@@ -111,8 +125,13 @@ class Specie:
 			coords[-1] *= self.wght0
 		elif len(getargspec(ProfileFunc).args)==1:
 			coords[-1] *= self.wght0*ProfileFunc(coords[0])
-		else:
+		elif len(getargspec(ProfileFunc).args)==2:
+			coords[-1] *= self.wght0 \
+			  *ProfileFunc( coords[0], np.sqrt( (coords[1:3]**2).sum(0) ) )
+		elif len(getargspec(ProfileFunc).args)==3:
 			coords[-1] *= self.wght0*ProfileFunc(*coords[0:3])
+		else:
+			print("can't understand the ProfileFunc")
 
 		if 'FlatSpectrum' in self.Configs['Features']:
 			rand_mom = 2*np.random.rand(3,Num_loc) - 1.0
@@ -142,10 +161,13 @@ class Specie:
 		self.Data['momenta'][:,-Num2add:] = momenta
 		self.Data['weights'].resize((Num2actl+Num2add,), refcheck=False)
 		self.Data['weights'][-Num2add:] = weights
- 
+		if 'KeepInitPos' in self.Configs['Features']:
+			self.Data['coords_init'].resize((3,Num2actl+Num2add), refcheck=False)
+			self.Data['coords_init'][:,-Num2add:] = coords
+
 	def make_field(self):
 		if 'Still' in self.Configs['Features']: return
-		if self.Data['EB'].shape[-1]!=self.Data['coords'].shape[-1]:
+		if self.Data['EB'].shape[-1] != self.Data['coords'].shape[-1]:
 			self.Data['EB'].resize((6,self.Data['coords'].shape[1]), \
 			  refcheck=False)
 		self.Data['EB'][:] = 0.0
@@ -190,41 +212,20 @@ class Specie:
 			  self.Data['weights'],self.Data['weights']),axis=0)
 			self.Data['weights'] *= 0.5
 
-	def chunk_coords(self,position=None):
-		if 'Xchunked' in self.Configs:
-			if self.Data['coords'].shape[-1] == 0: return
-			if position=='cntr':
-				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(\
-				  self.Data['coords_halfstep'],self.Args['Xgrid'],\
-				  self.Configs['Xchunked'][0])
-			else:
-				chnk_ind,self.chunks,outleft,outright  = chimera.chunk_coords(\
-				  self.Data['coords'],self.Args['Xgrid'],\
-				  self.Configs['Xchunked'][0])
-			if outright == 0:
-				chnk_ind = chnk_ind.argsort()[outleft:]
-			else:
-				chnk_ind = chnk_ind.argsort()[outleft:-outright]
-			if outleft!=0 or outright !=0: 
-				print('particles out', outleft,outright)
-
-			self.Data['coords'] = chimera.align_data_vec(\
-			  self.Data['coords'],chnk_ind)
-			self.Data['coords_halfstep'] = chimera.align_data_vec(\
-			  self.Data['coords_halfstep'],chnk_ind)
-			self.Data['momenta'] = chimera.align_data_vec(\
-			  self.Data['momenta'],chnk_ind)
-			self.Data['weights'] = chimera.align_data_scl(\
-			  self.Data['weights'],chnk_ind)
-
-	def damp_particles(self,wind):
+	def chunk_and_damp(self,wind=None,SimDom = None,position='stag'):
 		if self.Data['coords'].shape[-1] == 0: return
-		SimDom = np.asfortranarray([self.Args['leftX']+wind['AbsorbLayer'],\
-		  self.Args['rightX'],0.0, self.Args['upperR']**2])
+		comp = {'cntr':'coords_halfstep','stag':'coords'}
+		if wind==None:
+			wind = {'Features':(),'AbsorbLayer':0.0}
+
+		if type(SimDom) not in (list,tuple,np.ndarray,dict,set):
+			SimDom = np.asfortranarray([\
+			  self.Args['leftX'] + wind['AbsorbLayer']*self.Args['dx'],\
+			  self.Args['rightX'], 0.0, self.Args['upperR']**2])
 
 		if 'Xchunked' in self.Configs and 'NoSorting' not in wind['Features']:
 			index2stay,self.chunks,go_out  = chimera.chunk_coords_boundaries(\
-			  self.Data['coords'],SimDom,self.Args['Xgrid'],\
+			  self.Data[comp[position]],SimDom,self.Args['Xgrid'],\
 			  self.Configs['Xchunked'][0])
 			index2stay = index2stay.argsort()[go_out:]
 			num2stay = index2stay.shape[0]
@@ -232,18 +233,16 @@ class Specie:
 			index2stay,num2stay = chimera.sortpartsout(self.Data['coords'],SimDom)
 			index2stay = index2stay[:num2stay]
 
-		self.Data['coords'] = chimera.align_data_vec(\
-		  self.Data['coords'],index2stay)
-		self.Data['coords_halfstep'] = chimera.align_data_vec(
-		  self.Data['coords_halfstep'],index2stay)
-		self.Data['momenta'] = chimera.align_data_vec(\
-		  self.Data['momenta'],index2stay)
+		comps = ['coords','coords_halfstep','momenta']
+		if 'KeepInitPos' in self.Configs['Features']:
+			comps += ['coords_init']
+		for comp in comps:
+			self.Data[comp] = chimera.align_data_vec(\
+			  self.Data[comp],index2stay)
+			self.Data[comp].resize((3,num2stay), refcheck=False)
+
 		self.Data['weights'] = chimera.align_data_scl(\
 		  self.Data['weights'],index2stay)
-
-		self.Data['coords'].resize((3,num2stay), refcheck=False)
-		self.Data['coords_halfstep'].resize((3,num2stay), refcheck=False)
-		self.Data['momenta'].resize((3,num2stay), refcheck=False)
 		self.Data['weights'].resize((num2stay,), refcheck=False)
 
 	def get_dens_on_grid(self,Nko=0):

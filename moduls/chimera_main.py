@@ -1,7 +1,7 @@
+from __future__ import print_function,division
 import numpy as np
-from sys import path
-path.append('./moduls/')
-import fimera as chimera
+import chimera.moduls.fimera as chimera
+import time, os, h5py
 
 class ChimeraRun():
 	def __init__(self,SimComps):
@@ -15,18 +15,19 @@ class ChimeraRun():
 			self.Solvers = ()
 		if 'MovingFrames' in SimComps:
 			self.MovingFrames = SimComps['MovingFrames']
-			self.init_Moving_Frames()
 		else:
-			self.MovingFrames = ()
+			self.MovingFrames = ({},)
+		self.init_Moving_Frames()
 		self.init_damp_profile()
 		self.make_halfstep()
-
 
 	def init_Moving_Frames(self):
 		for wind in  self.MovingFrames:
 			if 'Features'   not in wind: wind['Features']   = ()
 			if 'TimeActive' not in wind: wind['TimeActive'] = (0.0,np.inf)
 			if 'Velocity'   not in wind: wind['Velocity']   = 1.0
+			if 'TimeStep'   not in wind: wind['TimeStep']   = 1.0
+			if 'Steps'   not in wind: wind['Steps']   = 1
 			if 'Staged' in wind['Features']:
 				wind['shiftX'] = 0.5*wind['Velocity']*wind['TimeStep']\
 				  * wind['Steps']
@@ -35,16 +36,22 @@ class ChimeraRun():
 
 	def init_damp_profile(self):
 		for solver in self.Solvers:
-			solver.Args['damp_profile'] = np.ones(solver.Args['Nx'])
 			for wind in self.MovingFrames:
-				if 'AbsorbLayer' not in wind: continue
-				if wind['AbsorbLayer']<=0: continue
-				solver.Args['damp_profile'] *= solver.get_damp_profile(\
-				  wind['AbsorbLayer'])
+				if 'AbsorbLayer' in wind:
+					solver.Args['damp_profile'] = solver.get_damp_profile(\
+					  wind['AbsorbLayer'])
 
 	def make_halfstep(self):
 		for species in self.Particles:
-			species.chunk_coords()
+			if len(self.Solvers)>0:
+				args_tmp = self.Solvers[0].Args
+			else:
+				args_tmp = self.Particles[0].Args
+			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'], \
+			  0,args_tmp['upperR']**2])
+			if SimDom[0]!=SimDom[1]:
+				species.chunk_and_damp(SimDom=SimDom)
+
 		self.project_current()
 		self.project_density()
 		for solver in self.Solvers:
@@ -53,7 +60,7 @@ class ChimeraRun():
 			solver.G2B_FBRot()
 		self.project_fields()
 		for species in self.Particles: species.make_device()
-		for species in self.Particles: 
+		for species in self.Particles:
 			species.push_velocs(dt=0.5*species.Configs['TimeStep'])
 
 	def make_step(self,istep):
@@ -76,9 +83,12 @@ class ChimeraRun():
 	def project_density(self):
 		for solver in self.Solvers:
 			if 'SpaceCharge' not in solver.Configs['Features'] and \
-			  'StaticKick' not in solver.Configs['Features']: continue
+			   'StaticKick'  not in solver.Configs['Features']:
+				continue
+
 			if 'StaticKick' not in solver.Configs['Features']:
 				solver.Data['gradRho_fb_prv'][:] = solver.Data['gradRho_fb_nxt']
+
 			self.dep_dens(solver)
 			solver.fb_dens_in()
 			solver.FBGradDens()
@@ -149,10 +159,13 @@ class ChimeraRun():
 
 	def dep_dens(self,solver,component='coords'):
 		solver.Data['Rho'][:] = 0.0
-		if 'StaticKick' in solver.Configs['Features']: 
+
+		if 'StaticKick' in solver.Configs['Features']:
 			component='coords_halfstep'
-		if 'StillAsBackground' in solver.Configs['Features']: 
+
+		if 'StillAsBackground' in solver.Configs['Features']:
 			solver.Data['Rho'] += solver.Data['BckGrndRho']
+
 		for species in self.Particles:
 			if species.Data[component].shape[1] == 0 \
 			  or 'Still' in species.Configs['Features']: continue
@@ -218,6 +231,10 @@ class ChimeraRun():
 			if 'StaticKick' in solver.Configs['Features']: continue
 			solver.damp_field()
 
+	def damp_plasma(self,wind):
+		if 'AbsorbLayer' not in wind: return
+		for species in self.Particles: species.chunk_and_damp(wind=wind)
+
 	def add_plasma(self,wind):
 		if 'AddPlasma' not in wind: return
 		if 'IonsOnTop' in wind['Features']:
@@ -234,33 +251,28 @@ class ChimeraRun():
 				  Xsteps=int(wind['shiftX']/wind['TimeStep'])+1,\
 				  ProfileFunc=wind['AddPlasma']))
 
-	def damp_plasma(self,wind):
-		if 'AbsorbLayer' not in wind: return
-		for species in self.Particles: species.damp_particles(wind)
-
 	def postframe_corr(self,wind):
 		if 'AbsorbLayer' or 'AddPlasma' in wind:
 			for solver in self.Solvers:
 				if 'StaticKick' in solver.Configs['Features']: continue
 				if 'SpaceCharge' in solver.Configs['Features']:
-					if 'StillAsBackground' in solver.Configs['Features']:	
+					if 'StillAsBackground' in solver.Configs['Features']:
 						self.dep_bg(solver)
 					self.dep_dens(solver)
 
 	def move_frame(self,wind):
-		for comp in self.Solvers+self.Particles:
+		for comp in (self.Solvers + self.Particles):
 			comp.Args['Xgrid']  += wind['shiftX']
 			comp.Args['leftX']  = comp.Args['Xgrid'][ 0]
 			comp.Args['rightX'] = comp.Args['Xgrid'][-1]
 
 	def frame_act(self,istep,act='stage1'):
 		for wind in self.MovingFrames:
-			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]: 
+			if istep<wind['TimeActive'][0] or istep>wind['TimeActive'][1]:
 				continue
-			if act=='stage1': self.damp_fields(wind)
 			if np.mod( istep-wind['TimeActive'][0], wind['Steps'])!= 0: continue
 			if act=='stage1':
-#				self.damp_fields(wind)
+				self.damp_fields(wind)
 				self.move_frame(wind)
 				self.add_plasma(wind)
 				self.damp_plasma(wind)
@@ -274,4 +286,102 @@ class ChimeraRun():
 			  or 'NoSorting' in species.Configs['Features']: continue
 			if np.mod(istep, species.Configs['Xchunked'][1]+1)!= 0: continue
 			if species.Data['coords'].shape[-1] == 0: continue
-		species.chunk_coords('cntr')
+			if len(self.Solvers)>0:
+				args_tmp = self.Solvers[0].Args
+			else:
+				args_tmp = self.Particles[0].Args
+			SimDom = np.asfortranarray([args_tmp['leftX'],args_tmp['rightX'],\
+			  0,args_tmp['Rgrid'].max()**2])
+			species.chunk_and_damp(SimDom = SimDom, position='cntr',)
+
+
+
+#########################################################################
+########## TO BE CHANGED INTO DIAG ######################################
+
+	def drop_snap(self,fname='./snap_',verbose=False):
+		fname += time.ctime().replace(' ','_').replace(':','-')+'.hdf5'
+		myf = h5py.File(fname, mode='w')
+		i=0
+		for solver in self.Solvers:
+			name = '/solver'+str(i)+'/'
+			for key in solver.Data.keys():
+				type_loc = type(solver.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				myf[name+'Data/'+key] = solver.Data[key]
+
+			for key in solver.Args.keys():
+				type_loc = type(solver.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				myf[name+'Args/'+key] = solver.Args[key]
+			i+=1
+		myf['/NumSolvers'] = i
+
+		i=0
+		for specie in self.Particles:
+			name = '/specie'+str(i)+'/'
+			for key in specie.Data.keys():
+				type_loc = type(specie.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				myf[name+'Data/'+key] = specie.Data[key]
+			for key in specie.Args.keys():
+				type_loc = type(specie.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				myf[name+'Args/'+key] = specie.Args[key]
+			i+=1
+		myf['/NumSpecies'] = i
+		myf['/NumThreads'] = int(os.environ['OMP_NUM_THREADS'])
+		myf.close()
+		return fname
+
+	def read_snap(self, fname='./test.hdf5',verbose=False):
+		myf = h5py.File(fname,mode='r')
+		NumSpecies = myf['NumSpecies'].value
+		NumSolvers = myf['NumSolvers'].value
+		for i in range(NumSolvers):
+			solver = self.Solvers[i]
+			name = '/solver'+str(i)+'/'
+			for key in solver.Data.keys():
+				type_loc = type(solver.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				solver.Data[key] = myf[name+'Data/'+key].value
+			for key in solver.Args.keys():
+				type_loc = type(solver.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				solver.Args[key] = myf[name+'Args/'+key].value
+
+		for i in range(NumSpecies):
+			specie = self.Particles[i]
+			name = '/specie'+str(i)+'/'
+			for key in specie.Data.keys():
+				type_loc = type(specie.Data[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Data/'+key)
+				specie.Data[key] = myf[name+'Data/'+key].value
+			for key in specie.Args.keys():
+				type_loc = type(specie.Args[key])
+				if type_loc==list or type_loc==tuple \
+				or type_loc==set or type_loc==dict:
+					continue
+				if verbose: print(name+'Args/'+key)
+				specie.Args[key] = myf[name+'Args/'+key].value

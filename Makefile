@@ -5,7 +5,8 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
              ./f90/grid_deps_env.f90      ./f90/grid_deps_chnk.f90  \
              ./f90/grid_deps_env_chnk.f90 ./f90/maxwell_solvers.f90 \
              ./f90/particle_tools.f90     ./f90/devices.f90         \
-             ./f90/utils.f90              ./f90/synchrad.f90
+             ./f90/utils.f90              ./f90/SR.f90              \
+             ./f90/SR_serial.f90
 
 #FFTI = /home/sources/magins/andriyash/CODES/fftw/include
 #FFTL = /home/sources/magins/andriyash/CODES/fftw/lib
@@ -16,8 +17,11 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
 #FFTI = /Users/igor/CODES/fft/include
 #FFTL = /Users/igor/CODES/fft/lib
 
-FFTI = /usr/local/include
-FFTL = /usr/local/lib
+#FFTI = /usr/local/include
+#FFTL = /usr/local/lib
+
+FFTI = /Users/igor/CODES/fftw336/include
+FFTL = /Users/igor/CODES/fftw336/lib
 
 #FLAGS_G = -c -DF2PY_REPORT_ON_ARRAY_COPY=1 --opt='-Og -Wall -Wline-truncation  -Wcharacter-truncation \
 # -Wextra -Wsurprising  -Waliasing -Wimplicit-interface  -Wunused-parameter  -fwhole-file -fcheck=all  \

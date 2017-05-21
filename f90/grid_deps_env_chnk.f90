@@ -73,7 +73,7 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
   enddo
   curr_p = curr_p*wp
 
-  do l=3,3 !! for non coreected tests
+  do l=3,3 !! for non corrected tests
     do iO = 0,nkO
       do k = 0,1
         if (ix+k<=0) then
@@ -120,7 +120,7 @@ deallocate(loc_right)
 
 !$omp parallel do default(shared) private(l) schedule(static)
 do l=1,3
-  curr(:,1,:,l) = curr(:,1,:,l) - curr(:,0,:,l)
+  curr(:,1,:,l) = curr(:,1,:,l) + curr(:,0,:,l)
   curr(:,0,:,l) = 0.0
 enddo
 !$omp end parallel do
