@@ -2,6 +2,7 @@ import numpy as np
 import chimera.moduls.fimera as chimera
 from scipy.constants import m_e,c,elementary_charge,epsilon_0,hbar
 from scipy.constants import alpha as alpha_fs
+from scipy.interpolate import griddata
 from time import localtime
 
 class SR:
@@ -126,9 +127,28 @@ class SR:
 				if np.abs(self.Args['omega'][indx+1]-k0) \
 				  < np.abs(self.Args['omega'][indx]-k0):
 					indx += 1
-
 				val = 2e6*np.pi*hbar*c* val[indx]
 			return val
+
+	def get_spot_cartesian(self, th_part=1.0, bins=(200,200), \
+	  spect_filter=None, chim_units=True, k0=None):
+
+		val = self.get_spot(spect_filter=spect_filter, \
+		  chim_units=chim_units, k0=k0)
+
+		th,ph = self.Args['theta'], self.Args['phi']
+		ph,th = np.meshgrid(ph,th)
+		coord = ((np.sin(th)*np.cos(ph)).flatten(),\
+		  (np.sin(th)*np.sin(ph)).flatten())
+		th_max = th_part*th.max()
+		new_coord = np.mgrid[-th_max:th_max:bins[0]*1j,-th_max:th_max:bins[1]*1j]
+		val = griddata(coord,val.flatten(),
+		    (new_coord[0].flatten(), new_coord[1].flatten()),
+		    fill_value=0., method='linear'
+		  ).reshape(new_coord[0].shape)
+		ext = np.array([-th_max,th_max,-th_max,th_max])
+		return val, ext
+		
 
 	def get_energy(self,spect_filter=None, chim_units=True):
 		if self.Configs['Mode'] == 'incoherent':
@@ -141,7 +161,8 @@ class SR:
 	def get_spectral_axis(self):
 		if self.Configs['Mode'] == 'incoherent':
 			if 'WavelengthGrid' in self.Configs['Features']:
-				ax = 0.5*(self.Args['wavelengths'][1:] + self.Args['wavelengths'][:-1])
+				ax = 0.5*(self.Args['wavelengths'][1:] \
+				  + self.Args['wavelengths'][:-1])
 			else:
 				ax = 0.5*(self.Args['omega'][1:] + self.Args['omega'][:-1])
 			return ax
