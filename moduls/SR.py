@@ -16,7 +16,8 @@ class SR:
 		if 'Component' not in self.Configs:
 			self.Configs['Component']=2
 
-		self.chim_norm = 4*np.pi**2*m_e*c**2*epsilon_0*1e6/elementary_charge**2
+		self.chim_norm = 4e-6*np.pi**2*m_e*c**2*epsilon_0/elementary_charge**2
+		self.J_in_um = 2e6*np.pi*hbar*c
 
 		(omega_min,omega_max),(theta_min,theta_max), (phi_min,phi_max),\
 		  (Nom,Nth,Nph) = self.Configs['Grid']
@@ -119,7 +120,7 @@ class SR:
 			val = self.get_full_spectrum(\
 			  spect_filter=spect_filter, chim_units=chim_units)
 			if k0 is None:
-				val = 1e6*np.pi*hbar*c *((val[1:] + val[:-1])\
+				val = self.J_in_um*0.5*((val[1:] + val[:-1])\
 				  *self.Args['dw'][:,None,None]).sum(0)
 			else:
 				ax = self.Args['omega']
@@ -127,7 +128,7 @@ class SR:
 				if np.abs(self.Args['omega'][indx+1]-k0) \
 				  < np.abs(self.Args['omega'][indx]-k0):
 					indx += 1
-				val = 2e6*np.pi*hbar*c* val[indx]
+				val = self.J_in_um*val[indx]
 			return val
 
 	def get_spot_cartesian(self, th_part=1.0, bins=(200,200), \
@@ -149,12 +150,11 @@ class SR:
 		ext = np.array([-th_max,th_max,-th_max,th_max])
 		return val, ext
 		
-
 	def get_energy(self,spect_filter=None, chim_units=True):
 		if self.Configs['Mode'] == 'incoherent':
 			val = self.get_energy_spectrum( \
 			  spect_filter=spect_filter, chim_units=chim_units)
-			val *= 2e6*np.pi*hbar*c
+			val *= self.J_in_um
 			val = (val*self.Args['dw']).sum()
 		return val
 

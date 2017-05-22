@@ -29,7 +29,7 @@ velocs = 0.0
 
 !$omp parallel do default(shared) private(veloc_prv,gp_inv,veloc_nxt,ip) schedule(static)
 do ip=1,np
-  wps(ip) = SQRT(ABS(wghts(ip)))
+  wps(ip) = ABS(wghts(ip))
   veloc_prv = momenta_prv(:,ip)
   gp_inv = 1.0d0/SQRT(1.0d0+ SUM(veloc_prv*veloc_prv) )
   veloc_prv = veloc_prv*gp_inv
@@ -131,7 +131,7 @@ spect_loc = 0.0
 
 !$omp do schedule(static)
 do ip=1,np
-  wp = SQRT(ABS(wghts(ip)))
+  wp = ABS(wghts(ip))
   do iph=1,nph
     sin_ph = SinPh(iph)
     cos_ph = CosPh(iph)
