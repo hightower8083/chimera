@@ -37,7 +37,7 @@ class SR:
 			self.Args['dw'] = self.Args['omega'][1:] - self.Args['omega'][:-1]
 			self.Args['dw'] = np.abs(self.Args['dw'])
 		else:
-			self.Args['dw'] = 1.
+			self.Args['dw'] = np.array([1.,])
 
 		if Nth>1:
 			self.Args['dth'] = self.Args['theta'][1]- self.Args['theta'][0]
@@ -90,13 +90,21 @@ class SR:
 			np.save(fname,self.Data[comp])
 		self.Args['step'] = 0 ## TBD
 
-	def calculate_spectrum(self):
+	def calculate_spectrum(self,comp='all'):
 		if self.Configs['Mode'] == 'incoherent':
-			self.Data['Rad_incoh'] = chimera.sr_calc_incoh_track(\
-			  self.Data['Rad_incoh'], \
-			  self.Data['coords'],self.Data['momenta_prv'],\
-			  self.Data['momenta_nxt'],\
-			  self.Data['weights'], *self.Args['DepFact'])
+			if comp != 'all':
+				comps = {'x':0, 'y':1, 'z':2}
+				self.Data['Rad_incoh'] = chimera.sr_calc_incoh_comp(\
+				  self.Data['Rad_incoh'], \
+				  self.Data['coords'],self.Data['momenta_prv'],\
+				  self.Data['momenta_nxt'],\
+				  self.Data['weights'], comps[comp], *self.Args['DepFact'])
+			else:
+				self.Data['Rad_incoh'] = chimera.sr_calc_incoh_tot(\
+				  self.Data['Rad_incoh'], \
+				  self.Data['coords'],self.Data['momenta_prv'],\
+				  self.Data['momenta_nxt'],\
+				  self.Data['weights'], *self.Args['DepFact'])			
 
 	def get_full_spectrum(self, spect_filter=None, chim_units=True):
 		if self.Configs['Mode'] == 'incoherent':
@@ -120,8 +128,9 @@ class SR:
 			val = self.get_full_spectrum(\
 			  spect_filter=spect_filter, chim_units=chim_units)
 			if k0 is None:
-				val = self.J_in_um*0.5*((val[1:] + val[:-1])\
-				  *self.Args['dw'][:,None,None]).sum(0)
+				if val.shape[0]>1:
+					val = 0.5*(val[1:] + val[:-1])					
+				val = self.J_in_um*(val*self.Args['dw'][:,None,None]).sum(0)
 			else:
 				ax = self.Args['omega']
 				indx = (ax<k0).sum()
@@ -166,25 +175,3 @@ class SR:
 			else:
 				ax = 0.5*(self.Args['omega'][1:] + self.Args['omega'][:-1])
 			return ax
-
-
-#############################################################################
-
-	def get_spectrum_ser(self):
-		if self.Configs['Mode'] == 'incoherent':
-			self.Data['Rad_incoh'] = chimera.sr_calc_incoh_track_serial(self.Data['Rad_incoh'], \
-			  self.Data['coords'],self.Data['momenta_prv'],self.Data['momenta_nxt'],\
-			  self.Data['weights'],*self.Args['DepFact'])
-
-	def project_current(self,beam,step):
-		if self.Configs['Mode'] == 'incoherent':
-			self.Data['Rad_incoh'] = chimera.sr_calc_incoh(self.Data['Rad_incoh'], \
-			  beam.Data['coords'],beam.Data['momenta_prv'],beam.Data['momenta'],\
-			  beam.Data['weights'],self.Configs['Component'],step,*self.Args['DepFact'])
-
-	def project_current_ser(self,beam,step):
-		if self.Configs['Mode'] == 'incoherent':
-			self.Data['Rad_incoh'] = chimera.sr_calc_incoh_ser(self.Data['Rad_incoh'], \
-			  beam.Data['coords'],beam.Data['momenta_prv'],beam.Data['momenta'],\
-			  beam.Data['weights'],self.Configs['Component'],step,*self.Args['DepFact'])
-

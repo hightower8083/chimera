@@ -5,8 +5,7 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
              ./f90/grid_deps_env.f90      ./f90/grid_deps_chnk.f90  \
              ./f90/grid_deps_env_chnk.f90 ./f90/maxwell_solvers.f90 \
              ./f90/particle_tools.f90     ./f90/devices.f90         \
-             ./f90/utils.f90              ./f90/SR.f90              \
-             ./f90/SR_serial.f90
+             ./f90/utils.f90              ./f90/SR.f90
 
 #FFTI = /home/sources/magins/andriyash/CODES/fftw/include
 #FFTL = /home/sources/magins/andriyash/CODES/fftw/lib
