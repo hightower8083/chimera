@@ -518,39 +518,6 @@ class Solver:
 
 		return In,Out,DpS2S,DmS2S,w,kr,kr_g,kx_g,Mmin,Mmax,Mtot
 
-####################
-#		if 'KxShift' in self.Configs:
-#			Mmin    , Mmax    , Mtot     = -Nko-1, Nko+1 , 2*Nko+3
-#			Mmin_ext, Mmax_ext, Mtot_ext = Mmin-1, Mmax+1, Mtot+2
-#		else:
-#			Mmin    , Mmax    , Mtot     = 0, Nko+1 , Nko+2
-#			Mmin_ext, Mmax_ext, Mtot_ext = 0, Mmax+1, Mtot+1
-
-#		kr   = np.zeros((Nkr,Mtot_ext))
-#		kr_g = np.zeros((Nx,Nkr,Mtot ))
-#		w    = np.zeros((Nx,Nkr,Mtot ))
-#		DpS2S  = np.zeros((Nkr,Nkr,Mtot))
-#		DmS2S  = np.zeros((Nkr,Nkr,Mtot))
-#		for jm in np.arange(Mmin_ext,Mmax_ext+1):
-#			kr[:,jm] = jn_zeros(jm,Nkr)/lengthR
-#		for jm in np.arange(Mmin,Mmax+1):
-#			kr_g[:,:,jm], kx_g = np.meshgrid(kr[:,jm],kx)
-#			w[:,:,jm] = np.sqrt(kx_g**2 + kr_g[:,:,jm]**2)
-#			In = inv(jn(jm, RgridFull[1:,None]*kr[:,jm][None,:]))
-#			DpS2S[:,:,jm] = In.dot(0.5*kr[:,    jm+1 ][None,:]*\
-#			  jn(jm,RgridFull[1:,None]*kr[:,    jm+1 ][None,:]))
-#			DmS2S[:,:,jm] = In.dot(0.5*kr[:,abs(jm-1)][None,:]*\
-#			  jn(jm,RgridFull[1:,None]*kr[:,abs(jm-1)][None,:]))
-#		if 'KxShift' in self.Configs:
-#			DpS2S = np.concatenate((DpS2S[:,:,Mmin:],DpS2S[:,:,:Mmax+1]),axis=-1)
-#			DmS2S = np.concatenate((DmS2S[:,:,Mmin:],DmS2S[:,:,:Mmax+1]),axis=-1)
-###################
-
-
-
-
-#####################################################################
-
 	def divG_clean(self):
 		self.Data['vec_fb'][:] = self.Data['EG_fb'][:,:,:,3:]
 		self.FBGradDiv()
