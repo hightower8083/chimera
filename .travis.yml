@@ -29,3 +29,5 @@ script:
   - make gfortran FFTI=/usr/include
   # install?
   # run example?
+  - export OMP_NUM_THREADS=4
+  - python doc/fel-testrun.py

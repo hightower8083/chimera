@@ -1,3 +1,4 @@
+F90 = f2py
 PGM = fimera
 
 SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
@@ -16,21 +17,22 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
 #FFTI = /Users/igor/CODES/fft/include
 #FFTL = /Users/igor/CODES/fft/lib
 
-FFTI = /usr/local/include
-FFTL = /usr/local/lib
+#FFTI = /usr/local/include
+#FFTL = /usr/local/lib
 
 #FFTI = /Users/igor/CODES/fftw336/include
 #FFTL = /Users/igor/CODES/fftw336/lib
 
-#FLAGS_G = -c -DF2PY_REPORT_ON_ARRAY_COPY=1 --opt='-Og -Wall -Wline-truncation  -Wcharacter-truncation \
-# -Wextra -Wsurprising  -Waliasing -Wimplicit-interface  -Wunused-parameter  -fwhole-file -fcheck=all  \
-# -std=f2008 -pedantic -fbacktrace -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
-#FLAGS_I = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -heap-arrays 24576 -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
+FFTI = $(HOME)/CODES/fftw/include
+FFTL = $(HOME)/CODES/fftw/lib
 
 FLAGS_G = -c --opt='-O3 -ffast-math -march=native -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
 FLAGS_I = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
 
-F90 = f2py
+FLAGS_GD = -c -DF2PY_REPORT_ON_ARRAY_COPY=1 --opt='-Og -Wall -Wline-truncation  -Wcharacter-truncation \
+ -Wextra -Wsurprising  -Waliasing -Wimplicit-interface  -Wunused-parameter  -fwhole-file -fcheck=all  \
+ -std=f2008 -pedantic -fbacktrace -fopenmp -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
+FLAGS_ID = -c --fcompiler=intelem --opt='-O3 -openmp -xHost -ipo -heap-arrays 24576 -I$(FFTI) -lfftw3' -L$(FFTL) -lm -lfftw3 -liomp5
 
 # This is done when typing 'make gfortran' or simply 'make' (default behavior)
 gfortran :
@@ -42,8 +44,17 @@ ifort :
 	$(F90) $(FLAGS_I) -m $(PGM) $(SRC_common)
 	mv *.so ./moduls/
 
+# This is done when typing 'make debug' or 'make idebug'
+debug :
+	$(F90) $(FLAGS_GD) -m $(PGM) $(SRC_common)
+	mv *.so ./moduls/
+
+idebug :
+	$(F90) $(FLAGS_ID) -m $(PGM) $(SRC_common)
+	mv *.so ./moduls/
+
 clean :
 	rm -rf  ./*.so* ./moduls/*.so*  \
            ./*.pyc ./moduls/*.pyc ./utils/*.pyc \
            ./.nfs0* ./moduls/.nfs0* ./f90/.nfs0* \
-           ./doc/.ipynb_checkpoints
+           ./doc/.ipynb_checkpoints ./.DS_Store
