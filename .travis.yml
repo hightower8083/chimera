@@ -17,6 +17,19 @@ matrix:
 
 sudo: false
 
+before_install:
+  # Setup miniconda
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=$HOME/miniconda2/bin:$PATH
+  # Create a virtual environment with the right version of python
+  - conda create -n testing python=$TRAVIS_PYTHON_VERSION --yes
+  - source activate testing
+
+install:
+  - conda install --yes scipy
+
 addons:
   apt:
     packages:
