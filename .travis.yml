@@ -4,16 +4,6 @@ python:
  - "2.7"
  - "3.4"
  - "3.5"
- - "nightly"
- - "pypy"
- - "pypy3"
-
-matrix:
-  allow_failures:
-    # those "upcoming" python versions are informational
-    - python: nightly
-    - python: "pypy"
-    - python: "pypy3"
 
 sudo: false
 
@@ -28,7 +18,7 @@ before_install:
   - source activate testing
 
 install:
-  - conda install --yes scipy
+  - conda install --yes scipy h5py
 
 addons:
   apt:
