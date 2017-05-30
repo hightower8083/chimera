@@ -57,7 +57,6 @@ class ChimeraRun():
 		for solver in self.Solvers:
 			for species in self.Particles:
 				solver.maxwell_solver_stat(species.Configs['MomentaMeans'][0])
-			solver.G2B_FBRot()
 		self.project_fields()
 		for species in self.Particles: species.make_device()
 		for species in self.Particles:
@@ -77,6 +76,10 @@ class ChimeraRun():
 
 	def project_current(self):
 		for solver in self.Solvers:
+			if 'NoCurrent' in solver.Configs['Features']:
+				solver.Data['J'][:] = 0.0
+				solver.Data['J_fb'][:] = 0.0
+				continue
 			self.dep_curr(solver)
 			solver.fb_curr_in()
 
@@ -103,15 +106,18 @@ class ChimeraRun():
 					solver.poiss_corr_stat(PXmean)
 					solver.maxwell_solver_stat(PXmean)
 					solver.field_drift(PXmean)
-				solver.G2B_FBRot()
 			else:
 				solver.poiss_corr()
 				solver.maxwell_solver()
-				solver.G2B_FBRot()
 
 	def project_fields(self,component='coords'):
 		for species in self.Particles: species.make_field()
 		for solver in self.Solvers:
+			if 'NoPush' in solver.Configs['Features']:
+				solver.Data['EB'][:] = 0.0
+				continue
+
+			solver.G2B_FBRot()
 			solver.fb_fld_out()
 			for species in self.Particles:
 				if species.Data[component].shape[1]==0 \
@@ -228,8 +234,8 @@ class ChimeraRun():
 		if 'AbsorbLayer' not in wind: return
 		if wind['AbsorbLayer']<=0: return
 		for solver in self.Solvers:
-			if 'StaticKick' in solver.Configs['Features']: continue
-			solver.damp_field()
+			if 'StaticKick' not in solver.Configs['Features']: 
+				solver.damp_field()
 
 	def damp_plasma(self,wind):
 		if 'AbsorbLayer' not in wind: return
