@@ -2,7 +2,7 @@ from __future__ import print_function,division
 import numpy as np
 import os
 import chimera.moduls.fimera as chimera
-#import fimera as chimera
+from scipy.interpolate import griddata
 
 PwrFctr = 0.5*0.511e6*1.6022e-19/2.818e-13*2.9979e10
 Ntheta = 60
@@ -131,6 +131,31 @@ class Diagnostics:
 					fout.close()
 		if 'Return' in diag['Features']: return ToReturn
 
+	def get_spot_cartesian(self, val = None, solver_index = 0, bins=(200,200),th_part=1.0):
+
+		sol = self.Chimera.Solvers[solver_index]
+		if val is None:
+			dat = chimera.fb_vec_out(sol.Data['EG_fb'][:,:,:,:3], \
+			  sol.Args['leftX'],*sol.Args['FBoutFull'])
+			val = chimera.intens_profo(dat,Ntheta)
+		r_max = sol.Args['RgridFull'].max()
+		rr = np.r_[0:r_max:val.shape[1]*1j]
+		ph = 2*np.pi/(Ntheta-1.)*np.arange(1,Ntheta+1)
+	      
+		ph,rr = np.meshgrid(ph,rr)
+		coord = ((rr*np.cos(ph)).flatten(),\
+		  (rr*np.sin(ph)).flatten())
+		r_max = th_part*r_max
+		new_coord = np.mgrid[-r_max:r_max:bins[0]*1j, \
+		  -r_max:r_max:bins[1]*1j]
+    
+		val = griddata(coord,val.T.flatten(),
+		  (new_coord[0].flatten(), new_coord[1].flatten()),
+		  fill_value=0., method='linear'
+		  ).reshape(new_coord[0].shape)
+		ext = np.array([-r_max,r_max,-r_max,r_max])
+		return val, ext
+
 	def get_beam_envelops(self):
 		ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
@@ -162,3 +187,5 @@ class Diagnostics:
 			ToReturn.append(PackEnvs)
 			PackEnvs = None
 		return ToReturn
+
+
