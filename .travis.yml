@@ -4,18 +4,21 @@ python:
  - "2.7"
  - "3.4"
  - "3.5"
- - "nightly"
- - "pypy"
- - "pypy3"
-
-matrix:
-  allow_failures:
-    # those "upcoming" python versions are informational
-    - python: nightly
-    - python: "pypy"
-    - python: "pypy3"
 
 sudo: false
+
+before_install:
+  # Setup miniconda
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=$HOME/miniconda2/bin:$PATH
+  # Create a virtual environment with the right version of python
+  - conda create -n testing python=$TRAVIS_PYTHON_VERSION --yes
+  - source activate testing
+
+install:
+  - conda install --yes scipy h5py
 
 addons:
   apt:
@@ -27,5 +30,8 @@ script:
   ########################################################
   # build
   - make gfortran FFTI=/usr/include
-  # install?
-  # run example?
+  # run examples
+  - export OMP_NUM_THREADS=4
+  - export PYTHONPATH=":$PWD/../:$PYTHONPATH"
+  - python doc/fel-testrun.py
+  - python doc/lpa-testrun.py

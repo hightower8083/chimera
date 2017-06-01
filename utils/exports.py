@@ -25,11 +25,11 @@ def ocelot_to_chimera(p_arrays,beam,lam0,keep_orig=True,\
 
 	Np = np.int(np.sum([p_array.size() for p_array in p_arrays]))
 
-	xx = np.hstack(([(p_array.s-p_array.tau())/lam0 for p_array in p_arrays]))
-	yy = np.hstack(([p_array.y()/lam0 for p_array in p_arrays]))
-	zz = np.hstack(([p_array.x()/lam0 for p_array in p_arrays]))
+	xx = np.hstack(([p_array.z_c - p_array.tau() for p_array in p_arrays]))/lam0
+	yy = np.hstack(([p_array.y() + p_array.y_c for p_array in p_arrays]))/lam0
+	zz = np.hstack(([p_array.x() + p_array.x_c for p_array in p_arrays]))/lam0
 
-	gg = np.hstack(([(p_array.p()+1)*p_array.E/mc2_GeV for p_array in p_arrays]))
+	gg = np.hstack(([(p_array.p()+1)*p_array.E for p_array in p_arrays]))/mc2_GeV
 	oy = np.hstack(([p_array.py() for p_array in p_arrays]))
 	oz = np.hstack(([p_array.px() for p_array in p_arrays]))
 
