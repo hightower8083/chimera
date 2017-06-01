@@ -30,8 +30,8 @@ script:
   ########################################################
   # build
   - make gfortran FFTI=/usr/include
-  # install?
-  # run example?
+  # run examples
   - export OMP_NUM_THREADS=4
   - export PYTHONPATH=":$PWD/../:$PYTHONPATH"
   - python doc/fel-testrun.py
+  - python doc/lpa-testrun.py
