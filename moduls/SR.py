@@ -106,27 +106,33 @@ class SR:
 				  self.Data['momenta_nxt'],\
 				  self.Data['weights'], *self.Args['DepFact'])			
 
-	def get_full_spectrum(self, spect_filter=None, chim_units=True):
+	def get_full_spectrum(self, spect_filter=None, chim_units=True, \
+	  phot_num=False):
 		if self.Configs['Mode'] == 'incoherent':
 			val = alpha_fs/(4*np.pi**2)*self.Data['Rad_incoh']
 			if spect_filter is not None:
 				val *= spect_filter
-			if chim_units is True:
+			if chim_units:
 				val *= self.chim_norm
+			if phot_num:
+				ax = self.Args['omega']
+				val /= ax[:,None,None]
 			return val
 
-	def get_energy_spectrum(self, spect_filter = None, chim_units=True):
+	def get_energy_spectrum(self, spect_filter = None, chim_units=True, \
+	  phot_num=False):
 		if self.Configs['Mode'] == 'incoherent':
 			val = self.get_full_spectrum( \
-			  spect_filter=spect_filter, chim_units=chim_units)
+			  spect_filter=spect_filter, chim_units=chim_units,phot_num=phot_num)
 			val = 0.5*self.Args['dth']*self.Args['dph']*( (val[1:] + val[:-1]) \
 			  *np.sin(self.Args['theta'][None,:,None]) ).sum(-1).sum(-1)
 			return val
 
-	def get_spot(self,spect_filter=None, chim_units=True, k0=None):
+	def get_spot(self,spect_filter=None, chim_units=True, k0=None, \
+	  phot_num=False):
 		if self.Configs['Mode'] == 'incoherent':
 			val = self.get_full_spectrum(\
-			  spect_filter=spect_filter, chim_units=chim_units)
+			  spect_filter=spect_filter, chim_units=chim_units,phot_num=phot_num)
 			if k0 is None:
 				if val.shape[0]>1:
 					val = 0.5*(val[1:] + val[:-1])					
@@ -141,10 +147,10 @@ class SR:
 			return val
 
 	def get_spot_cartesian(self, th_part=1.0, bins=(200,200), \
-	  spect_filter=None, chim_units=True, k0=None):
+	  spect_filter=None, chim_units=True, k0=None, phot_num=False):
 
 		val = self.get_spot(spect_filter=spect_filter, \
-		  chim_units=chim_units, k0=k0)
+		  chim_units=chim_units, k0=k0, phot_num=phot_num)
 
 		th,ph = self.Args['theta'], self.Args['phi']
 		ph,th = np.meshgrid(ph,th)
