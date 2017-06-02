@@ -28,14 +28,14 @@ tests_succ = 0
 tests_fail = 0
 
 print(print_msg.format(1,'FREE ELECTRON LASER AMPLIFICATION'))
-msg=os.system('python ./fel-testrun.py')
+msg=os.system('python ./doc/tests/fel-testrun.py')
 if msg==0:
 	tests_succ +=1
 else:
 	tests_fail +=1
 
 print(print_msg.format(2,'LASER PLASMA ACCELERATION'))
-msg = os.system('python ./lpa-testrun.py')
+msg = os.system('python ./doc/tests/lpa-testrun.py')
 if msg==0:
 	tests_succ +=1
 else:
