@@ -33,5 +33,4 @@ script:
   # run examples
   - export OMP_NUM_THREADS=4
   - export PYTHONPATH=":$PWD/../:$PYTHONPATH"
-  - python doc/fel-testrun.py
-  - python doc/lpa-testrun.py
+  - python doc/tests/run-all-tests.py
