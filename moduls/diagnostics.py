@@ -1,3 +1,20 @@
+# This file is a part of CHIMERA software
+# CHIMERA is a simulation code for FEL and laser plasma simulations
+# Copyright (C)  2016 Igor A. Andriyash <igor.andriyash@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import print_function,division
 import numpy as np
 import os
@@ -55,12 +72,12 @@ class Diagnostics:
 			modes = diag['Features']['MaxMode']
 		else:
 			if len(self.Chimera.Solvers)>0:
-				modes = self.Chimera.Solvers[0].Configs['MaxAzimuthMode']
+				modes = self.Chimera.Solvers[0].Args['MaxAzimuthMode']
 			else:
 				modes = 0
 		if 'Return' in diag['Features']:ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
-			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
+			if 'Still' in self.Chimera.Particles[jj].Args['Features']: continue
 			dat = self.Chimera.Particles[jj].get_dens_on_grid(modes)[:,1:]
 			if 'Return' in diag['Features']:
 				ToReturn.append(dat.copy())
@@ -72,7 +89,7 @@ class Diagnostics:
 	def phs_out(self,diag):
 		if 'Return' in diag['Features']: ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
-			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: continue
+			if 'Still' in self.Chimera.Particles[jj].Args['Features']: continue
 			indx = np.nonzero( \
 			  (1.+self.Chimera.Particles[jj].Data['momenta']**2).sum(0) \
 			  > 20.**2)[0] # LPA filter
@@ -131,7 +148,8 @@ class Diagnostics:
 					fout.close()
 		if 'Return' in diag['Features']: return ToReturn
 
-	def get_spot_cartesian(self, val = None, solver_index = 0, bins=(200,200),th_part=1.0):
+	def get_spot_cartesian(self, val=None, solver_index=0, \
+	  bins=(200,200), th_part=1.):
 
 		sol = self.Chimera.Solvers[solver_index]
 		if val is None:
@@ -159,7 +177,7 @@ class Diagnostics:
 	def get_beam_envelops(self):
 		ToReturn = []
 		for jj in range(len(self.Chimera.Particles)):
-			if 'Still' in self.Chimera.Particles[jj].Configs['Features']: 
+			if 'Still' in self.Chimera.Particles[jj].Args['Features']: 
 				continue
 			x,y,z = self.Chimera.Particles[jj].Data['coords_halfstep']
 			px,py,pz = self.Chimera.Particles[jj].Data['momenta']
