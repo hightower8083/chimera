@@ -38,7 +38,7 @@ def ocelot_to_chimera(p_arrays,beam,lam0,keep_orig=True,\
 	px = np.sqrt( (gg**2-1.)/(1+oy**2+oz**2) )
 	py = px*oy
 	pz = px*oz
-	qq = -qq/(beam.weight2pC*lam0*1e6)
+	qq = -qq/(beam.Args['weight2pC']*lam0*1e6)
 
 	if monochrom is not None:
 		emin,emax = monochrom
