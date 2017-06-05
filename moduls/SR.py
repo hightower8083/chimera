@@ -1,3 +1,20 @@
+# This file is a part of CHIMERA software
+# CHIMERA is a simulation code for FEL and laser plasma simulations
+# Copyright (C)  2016 Igor A. Andriyash <igor.andriyash@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np
 import chimera.moduls.fimera as chimera
 from scipy.constants import m_e,c,elementary_charge,epsilon_0,hbar
@@ -8,24 +25,21 @@ from time import localtime
 class SR:
 	def __init__(self,sr_in):
 
-		self.Configs = sr_in
-		if 'Features' not in self.Configs:
-			self.Configs['Features'] = ()
-		if 'Mode' not in self.Configs:
-			self.Configs['Mode']='incoherent'
-		if 'Component' not in self.Configs:
-			self.Configs['Component']=2
+		self.Args = sr_in
+		if 'Features' not in self.Args:
+			self.Args['Features'] = ()
+		if 'Mode' not in self.Args:
+			self.Args['Mode']='incoherent'
+		if 'Component' not in self.Args:
+			self.Args['Component']=2
 
 		self.chim_norm = 4e-6*np.pi**2*m_e*c**2*epsilon_0/elementary_charge**2
 		self.J_in_um = 2e6*np.pi*hbar*c
 
 		(omega_min,omega_max),(theta_min,theta_max), (phi_min,phi_max),\
-		  (Nom,Nth,Nph) = self.Configs['Grid']
+		  (Nom,Nth,Nph) = self.Args['Grid']
 
-		self.Args = {}
-		self.Data = {}
-
-		if 'WavelengthGrid' in self.Configs['Features']:
+		if 'WavelengthGrid' in self.Args['Features']:
 			self.Args['wavelengths'] = np.r_[1./omega_max:1./omega_min:Nom*1j]
 			self.Args['omega'] = 1./self.Args['wavelengths']
 		else:
@@ -51,15 +65,17 @@ class SR:
 
 		self.Args['dV'] = self.Args['dw']*self.Args['dth']*self.Args['dph']
 
-		self.Args['DepFact'] = [self.Configs['TimeStep'], self.Args['omega'], \
+		self.Args['DepFact'] = [self.Args['TimeStep'], self.Args['omega'], \
 		  np.sin(self.Args['theta']),np.cos(self.Args['theta']), \
 		  np.sin(self.Args['phi']),np.cos(self.Args['phi']) ]
 
-		if self.Configs['Mode'] == 'incoherent':
+		self.Data = {}
+
+		if self.Args['Mode'] == 'incoherent':
 			self.Data['Rad_incoh'] = np.zeros((Nom,Nth,Nph),order='F')
-		elif self.Configs['Mode'] == 'coherent':
+		elif self.Args['Mode'] == 'coherent':
 			self.Data['Rad_coh'] = np.zeros((Nom,Nth,Nph),order='F')
-		elif self.Configs['Mode'] == 'all':
+		elif self.Args['Mode'] == 'all':
 			self.Data['Rad_coh'] = np.zeros((Nom,Nth,Nph),order='F')
 			self.Data['Rad_incoh'] = np.zeros((Nom,Nth,Nph),order='F')
 
@@ -91,7 +107,7 @@ class SR:
 		self.Args['step'] = 0 ## TBD
 
 	def calculate_spectrum(self,comp='all'):
-		if self.Configs['Mode'] == 'incoherent':
+		if self.Args['Mode'] == 'incoherent':
 			if comp != 'all':
 				comps = {'x':0, 'y':1, 'z':2}
 				self.Data['Rad_incoh'] = chimera.sr_calc_incoh_comp(\
@@ -108,7 +124,7 @@ class SR:
 
 	def get_full_spectrum(self, spect_filter=None, chim_units=True, \
 	  phot_num=False):
-		if self.Configs['Mode'] == 'incoherent':
+		if self.Args['Mode'] == 'incoherent':
 			val = alpha_fs/(4*np.pi**2)*self.Data['Rad_incoh']
 			if spect_filter is not None:
 				val *= spect_filter
@@ -121,7 +137,7 @@ class SR:
 
 	def get_energy_spectrum(self, spect_filter = None, chim_units=True, \
 	  phot_num=False):
-		if self.Configs['Mode'] == 'incoherent':
+		if self.Args['Mode'] == 'incoherent':
 			val = self.get_full_spectrum( \
 			  spect_filter=spect_filter, chim_units=chim_units,phot_num=phot_num)
 			val = 0.5*self.Args['dth']*self.Args['dph']*( (val[1:] + val[:-1]) \
@@ -130,7 +146,7 @@ class SR:
 
 	def get_spot(self,spect_filter=None, chim_units=True, k0=None, \
 	  phot_num=False):
-		if self.Configs['Mode'] == 'incoherent':
+		if self.Args['Mode'] == 'incoherent':
 			val = self.get_full_spectrum(\
 			  spect_filter=spect_filter, chim_units=chim_units,phot_num=phot_num)
 			if k0 is None:
@@ -166,7 +182,7 @@ class SR:
 		return val, ext
 		
 	def get_energy(self,spect_filter=None, chim_units=True):
-		if self.Configs['Mode'] == 'incoherent':
+		if self.Args['Mode'] == 'incoherent':
 			val = self.get_energy_spectrum( \
 			  spect_filter=spect_filter, chim_units=chim_units)
 			val *= self.J_in_um
@@ -174,8 +190,8 @@ class SR:
 		return val
 
 	def get_spectral_axis(self):
-		if self.Configs['Mode'] == 'incoherent':
-			if 'WavelengthGrid' in self.Configs['Features']:
+		if self.Args['Mode'] == 'incoherent':
+			if 'WavelengthGrid' in self.Args['Features']:
 				ax = 0.5*(self.Args['wavelengths'][1:] \
 				  + self.Args['wavelengths'][:-1])
 			else:
