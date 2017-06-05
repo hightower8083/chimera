@@ -12,11 +12,11 @@ inpt = __import__(sys.argv[1])
 solver=inpt.solver
 electrons = inpt.electrons
 
-specie_in =  inpt.electrons.Configs#inpt.electrons_in
-dt =inpt.solver.Configs['dt'] #inpt.dt
+specie_in =  inpt.electrons.Args#inpt.electrons_in
+dt =inpt.solver.Args['dt'] #inpt.dt
 MovingFrame = inpt.MovingFrame
-BoxGrid = inpt.solver.Configs['Grid']
-PlasmaGrid = inpt.electrons.Configs['Grid']
+BoxGrid = inpt.solver.Args['Grid']
+PlasmaGrid = inpt.electrons.Args['Grid']
 
 out_folder = inpt.out_folder
 if 'Velocity' in MovingFrame:
