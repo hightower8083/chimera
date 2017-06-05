@@ -2,6 +2,7 @@
 
 [![Build Status master](https://img.shields.io/travis/hightower8083/chimera/master.svg?label=master)](https://travis-ci.org/hightower8083/chimera/branches)
 [![Build Status dev](https://img.shields.io/travis/hightower8083/chimera/dev.svg?label=dev)](https://travis-ci.org/hightower8083/chimera/branches)
+[![CRAN](https://img.shields.io/cran/l/devtools.svg)](LICENSE)
 
 by Igor A Andriyash (<igor.andriyash@gmail.com>)
 
