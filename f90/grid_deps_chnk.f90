@@ -61,7 +61,7 @@ do ip=IndInChunk(ichnk)+1,IndInChunk(ichnk+1)
   if ((rp >= Rgrid(nr)) .or. (SUM(ABS(veloc)) .eq. 0.0d0)) CYCLE
   gp = DSQRT(1.0d0 + veloc(1)*veloc(1) + veloc(2)*veloc(2) &
              + veloc(3)*veloc(3))
-  veloc = veloc * wp/gp
+  veloc = veloc * wp / gp
 
   ix = FLOOR((xp-leftX) * dx_inv) - nxleft
   ir = FLOOR((rp-Rgrid(0)) * dr_inv)
@@ -119,6 +119,8 @@ endif
 deallocate(loc_left)
 deallocate(loc_right)
 !$omp end parallel
+
+call omp_set_num_threads(3)
 
 !$omp parallel do default(shared) private(l) schedule(static)
 do l=1,3
