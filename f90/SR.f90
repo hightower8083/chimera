@@ -241,7 +241,7 @@ real (kind=8)    :: coord(3), veloc(3), pointing(3)
 real (kind=8)    :: wp, gp_inv, x_scr, y_scr, omg, R_0, R_inv, kotelnikov
 real (kind=8)    :: pi2, pi2_inv, dt_inv, dt_2p, pi=4.0d0*DATAN(1.0d0)
 complex (kind=8) :: ii=(0.0d0,1.0d0), integral(nom) 
-complex (kind=8) :: arg_phase, arg_amp1, arg_amp2
+complex (kind=8) :: arg_phase, arg_amp1, arg_amp2,phase_prv
 
 !f2py intent(in) :: coords, momenta, wghts, comp, dt
 !f2py intent(in) :: z_scr, omega, Xgrid, Ygrid
@@ -257,7 +257,8 @@ dt_2p = dt*pi2_inv
 !$omp parallel default(shared) private(spect_loc,ip,it,ix,iy,iom,wp, &
 !$omp                                  x_scr,y_scr,integral,coord, pointing, &
 !$omp                                  R_0,R_inv,veloc,gp_inv,arg_phase, &
-!$omp                                  arg_amp1,arg_amp2,omg,kotelnikov)
+!$omp                                  phase_prv, arg_amp1,arg_amp2,omg, &
+!$omp                                  kotelnikov)
 
 allocate(spect_loc(nom,nx,ny))
 spect_loc = 0.0d0
@@ -270,11 +271,12 @@ do ip=1,np
     do iy=1,ny
       y_scr =  Ygrid(iy)
       integral = 0.0d0
+      phase_prv = 0.0d0
       do it=1,nt
         coord = coords(:,it,ip)
         pointing(1) = z_scr - coord(1)
-        pointing(2) = x_scr - coord(2)
-        pointing(3) = y_scr - coord(3)
+        pointing(2) = y_scr - coord(2)
+        pointing(3) = x_scr - coord(3)
         R_0 = SQRT(SUM(pointing*pointing))
         R_inv = 1.0d0 / R_0
         pointing = pointing * R_inv
@@ -287,11 +289,14 @@ do ip=1,np
         arg_amp1 = ii * dt * R_inv * (veloc(comp)-pointing(comp))
         arg_amp2 = dt * R_inv * R_inv * pi2_inv * pointing(comp)
 
-        kotelnikov =  dt * (1.0d0-SUM(veloc*pointing))
+        kotelnikov =  0.0d0
+!ABS(arg_phase - phase_prv)
+!        phase_prv = arg_phase
+        !dt * (1.0d0-SUM(veloc*pointing))
 
         do iom=1,nom
           omg = omega(iom)
-          if (kotelnikov*omg <= 1.0d0) then
+          if (kotelnikov*omg < pi2) then
             integral(iom) = integral(iom) + (arg_amp1*omg+arg_amp2) &
                                            *exp(arg_phase*omg)
           endif
