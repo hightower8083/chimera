@@ -160,7 +160,7 @@ class SR:
 			  self.Data['Rad'], \
 			  self.Data['coords'],self.Data['momenta_prv'],\
 			  self.Data['momenta_nxt'],\
-			  self.Data['weights'], *self.Args['DepFact'])			
+			  self.Data['weights'], *self.Args['DepFact'])
 
 	def calculate_spectrum_near(self,comp='all'):
 		if comp != 'all':
@@ -178,8 +178,11 @@ class SR:
 
 	def get_full_spectrum(self, spect_filter=None, chim_units=True, \
 	  phot_num=False):
+		if self.Args['Mode'] is 'far':
+			val = alpha_fs/(4*np.pi**2)*self.Data['Rad']
+		elif self.Args['Mode'] is 'near':
+			val = alpha_fs*np.pi/4*self.Data['Rad']
 
-		val = alpha_fs/(4*np.pi**2)*self.Data['Rad']
 		if spect_filter is not None:
 			val *= spect_filter
 		if chim_units:
@@ -191,11 +194,22 @@ class SR:
 
 	def get_energy_spectrum(self, spect_filter = None, chim_units=True, \
 	  phot_num=False):
-
 		val = self.get_full_spectrum( \
 		  spect_filter=spect_filter, chim_units=chim_units,phot_num=phot_num)
-		val = 0.5*self.Args['dth']*self.Args['dph']*( (val[1:] + val[:-1]) \
-		  *np.sin(self.Args['theta'][None,:,None]) ).sum(-1).sum(-1)
+
+		if self.Args['Mode'] is 'far':
+			val = 0.5*self.Args['dth']*self.Args['dph']*( (val[1:] + val[:-1]) \
+			  *np.sin(self.Args['theta'][None,:,None]) ).sum(-1).sum(-1)
+		elif self.Args['Mode'] is 'near':
+			val = 0.5*self.Args['dx']*self.Args['dy'] \
+			      *(val[1:] + val[:-1]).sum(-1).sum(-1)
+		return val
+
+	def get_energy(self,spect_filter=None, chim_units=True):
+		val = self.get_energy_spectrum( \
+		  spect_filter=spect_filter, chim_units=chim_units)
+		val *= self.J_in_um
+		val = (val*self.Args['dw']).sum()
 		return val
 
 	def get_spot(self,spect_filter=None, chim_units=True, k0=None, \
@@ -205,7 +219,7 @@ class SR:
 		  spect_filter=spect_filter, chim_units=chim_units,phot_num=phot_num)
 		if k0 is None:
 			if val.shape[0]>1:
-				val = 0.5*(val[1:] + val[:-1])					
+				val = 0.5*(val[1:] + val[:-1])
 			val = self.J_in_um*(val*self.Args['dw'][:,None,None]).sum(0)
 		else:
 			ax = self.Args['omega']
@@ -234,7 +248,7 @@ class SR:
 		  ).reshape(new_coord[0].shape)
 		ext = np.array([-th_max,th_max,-th_max,th_max])
 		return val, ext
-		
+
 	def get_energy(self,spect_filter=None, chim_units=True):
 		val = self.get_energy_spectrum( \
 		  spect_filter=spect_filter, chim_units=chim_units)
