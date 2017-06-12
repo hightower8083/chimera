@@ -38,7 +38,8 @@ ku     = 2.d0*pi/lambda
 dx_inv = 1.0d0/dx
 Xright= Xleft+nx*dx
 
-!$omp parallel default(private) shared(coord,Fld,t,a0,params,np,nx,lambda,Xleft,dx,ku,dx_inv,Xright)
+!$omp parallel default(private) shared(coord,Fld,t,a0,params,np,nx, &
+!$omp                                  lambda,Xleft,dx,ku,dx_inv,Xright)
 !$omp do schedule(static)
 do ip=1,np
   xp = coord(1,ip)
@@ -133,7 +134,8 @@ Lx     = params(4)
 taper =  params(5)
 ku     = 2.d0*pi/lambda
 
-!$omp parallel default(private) shared(coord,Fld,t,params,np,a0,lambda,X0,Lx,taper,ku)
+!$omp parallel default(private) shared(coord,Fld,t,params,np,a0, &
+!$omp                                  lambda,X0,Lx,taper,ku)
 !$omp do schedule(static)
 do ip=1,np
   if(coord(1,ip)<=X0 .or. coord(1,ip)>=X0+Lx) then
@@ -177,7 +179,8 @@ Lx     = params(4)
 
 ku     = 2.d0*pi/lambda
 
-!$omp parallel default(private) shared(coord,Fld,t,params,np,a0,lambda,X0,Lx,ku)
+!$omp parallel default(private) shared(coord,Fld,t,params,np,a0,&
+!$omp                                  lambda,X0,Lx,ku)
 !$omp do schedule(static)
 do ip=1,np
   if(coord(1,ip)<=X0 .or. coord(1,ip)>=X0+Lx) then
