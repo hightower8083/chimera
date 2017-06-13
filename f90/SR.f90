@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 subroutine sr_calc_far_tot(spect,coords,momenta_prv,momenta_nxt,wghts,dt,&
-                         omega,SinTh,CosTh,SinPh,CosPh,nt,np,nom,nth,nph)
+                           omega,SinTh,CosTh,SinPh,CosPh,nt,np,nom,nth,nph)
 implicit none
 integer, intent(in) :: nt,np,nth,nph,nom
 real(kind=8), dimension(3,nt,np), intent(in) :: coords,momenta_prv,momenta_nxt
@@ -28,11 +28,11 @@ real (kind=8), allocatable    :: spect_loc(:,:,:)
 integer          :: ip,it,ith,iph,iom
 real (kind=8)    :: coord(3),accel(3),veloc_prv(3),veloc_nxt(3),veloc(3)
 real (kind=8)    :: wp,gp_inv
-real (kind=8)    :: C1, C2, C41, C42, C43, C3,C2_inv, C2_inv2
+real (kind=8)    :: C1, C2, C4(3),  C3,C2_inv, C2_inv2
 real (kind=8)    :: dt_inv,dt2p,pi=4.d0*DATAN(1.d0)
 real (kind=8)    :: sin_th,cos_th,sin_ph,cos_ph,omg
-complex (kind=8) :: ii=(0.0d0,1.0d0), integral1(nom)
-complex (kind=8) :: integral2(nom),integral3(nom)
+complex (kind=8) :: ii=(0.0d0,1.0d0), integral(3,nom)
+!complex (kind=8) :: integral2(nom),integral3(nom)
 
 !f2py intent(in) :: coords,momenta_prv,momenta_nxt,wghts,dt
 !f2py intent(in) :: omega,SinTh,CosTh,SinPh,CosPh
@@ -44,10 +44,9 @@ dt2p = dt/(2.0d0*pi)
 
 !$omp parallel default(shared) private(spect_loc,ip,it,ith,iph,iom,coord,  &
 !$omp                                  accel,veloc_prv,veloc_nxt,veloc,wp, &
-!$omp                                  gp_inv, C1,C2, C3, C41, C42, C43,   &
+!$omp                                  gp_inv, C1,C2, C3, C4,   &
 !$omp                                  C2_inv, C2_inv2, sin_th,cos_th,     &
-!$omp                                  sin_ph,cos_ph,omg,integral1,        &
-!$omp                                  integral2,integral3)
+!$omp                                  sin_ph,cos_ph,omg,integral)
 
 allocate(spect_loc(nom,nth,nph))
 spect_loc = 0.0d0
@@ -61,9 +60,9 @@ do ip=1,np
     do ith=1,nth
       sin_th = SinTh(ith)
       cos_th = CosTh(ith)
-      integral1 = 0.0d0
-      integral2 = 0.0d0
-      integral3 = 0.0d0
+      integral = 0.0d0
+      !integral2 = 0.0d0
+      !integral3 = 0.0d0
       do it=1,nt
         coord = coords(:,it,ip)
         veloc_prv = momenta_prv(:,it,ip)
@@ -86,21 +85,21 @@ do ip=1,np
         C3 = 2.0d0 * pi * (it*dt-(coord(3)*sin_th*cos_ph &
              + coord(2)*sin_th*sin_ph + coord(1)*cos_th))
 
-        C41 = ( C1*(       cos_th-veloc(1)) - C2*accel(1) )*C2_inv2
-        C42 = ( C1*(sin_ph*sin_th-veloc(2)) - C2*accel(2) )*C2_inv2
-        C43 = ( C1*(sin_th*cos_ph-veloc(3)) - C2*accel(3) )*C2_inv2
+        C4(1) = ( C1*(       cos_th-veloc(1)) - C2*accel(1) )*C2_inv2
+        C4(2) = ( C1*(sin_ph*sin_th-veloc(2)) - C2*accel(2) )*C2_inv2
+        C4(3) = ( C1*(sin_th*cos_ph-veloc(3)) - C2*accel(3) )*C2_inv2
 
         do iom=1,nom
           omg = omega(iom)
           if (2.0d0 * omg * dt * C2 <= 1.0d0) then
-            integral1(iom) = integral1(iom)+C41*dt*exp(ii*omg*C3)
-            integral2(iom) = integral2(iom)+C42*dt*exp(ii*omg*C3)
-            integral3(iom) = integral3(iom)+C43*dt*exp(ii*omg*C3)
+            integral(:,iom) = integral(:,iom)+C4*dt*exp(ii*omg*C3)
+            !integral2(iom) = integral2(iom)+C42*dt*exp(ii*omg*C3)
+            !integral3(iom) = integral3(iom)+C43*dt*exp(ii*omg*C3)
           endif
         enddo
       enddo
       spect_loc(:,ith,iph) = spect_loc(:,ith,iph) &
-         + wp*(ABS(integral1)**2+ABS(integral2)**2+ABS(integral3)**2)
+         + wp*SUM(ABS(integral)**2,DIM=1)
     enddo
   enddo
 enddo
@@ -121,8 +120,8 @@ deallocate(spect_loc)
 end subroutine
 
 subroutine sr_calc_far_comp(spect,coords,momenta_prv,momenta_nxt,wghts, &
-                              comp,dt,omega,SinTh,CosTh,SinPh,CosPh,nt,   &
-                              np,nom,nth,nph)
+                            comp,dt,omega,SinTh,CosTh,SinPh,CosPh,nt,   &
+                            np,nom,nth,nph)
 implicit none
 integer, intent(in) :: comp,nt,np,nth,nph,nom
 real(kind=8), dimension(3,nt,np), intent(in) :: coords,momenta_prv,momenta_nxt
@@ -226,8 +225,8 @@ deallocate(spect_loc)
 end subroutine
 
 subroutine sr_calc_near_comp(spect, coords, momenta, wghts, &
-                              comp, dt, omega, Xgrid, Ygrid, z_scr, nt, &
-                              np, nom, nx, ny)
+                             comp, dt, omega, Xgrid, Ygrid, z_scr, nt, &
+                             np, nom, nx, ny)
 implicit none
 integer, intent(in) :: comp, nt, np, nx, ny, nom
 real(kind=8), dimension(3,nt,np), intent(in) :: coords,momenta
@@ -289,9 +288,8 @@ do ip=1,np
         arg_amp1 = ii * dt * R_inv * (veloc(comp)-pointing(comp))
         arg_amp2 = dt * R_inv * R_inv * pi2_inv * pointing(comp)
 
-        kotelnikov =  0.0d0
-!ABS(arg_phase - phase_prv)
-!        phase_prv = arg_phase
+        kotelnikov =  ABS(arg_phase - phase_prv)
+        phase_prv = arg_phase
         !dt * (1.0d0-SUM(veloc*pointing))
 
         do iom=1,nom
@@ -321,3 +319,296 @@ deallocate(spect_loc)
 !$omp barrier
 !$omp end parallel
 end subroutine
+
+subroutine sr_calc_near_tot(spect, coords, momenta, wghts, &
+                            dt, omega, Xgrid, Ygrid, z_scr, nt, &
+                            np, nom, nx, ny)
+implicit none
+integer, intent(in) :: nt, np, nx, ny, nom
+real(kind=8), dimension(3,nt,np), intent(in) :: coords,momenta
+real(kind=8), intent(in) :: wghts(np), dt, omega(nom)
+real(kind=8), intent(in) :: Xgrid(nx), Ygrid(ny), z_scr
+real(kind=8), intent(inout) :: spect(nom,nx,ny)
+
+real (kind=8), allocatable    :: spect_loc(:,:,:)
+integer          :: ip, it, ix, iy, iom
+real (kind=8)    :: coord(3), veloc(3), pointing(3)
+real (kind=8)    :: wp, gp_inv, x_scr, y_scr, omg, R_0, R_inv, kotelnikov
+real (kind=8)    :: pi2, pi2_inv, dt_inv, dt_2p, pi=4.0d0*DATAN(1.0d0)
+complex (kind=8) :: ii=(0.0d0,1.0d0)
+complex (kind=8) :: integral(3,nom)
+complex (kind=8) :: arg_phase, arg_amp1(3), arg_amp2(3), phase_prv
+
+!f2py intent(in) :: coords, momenta, wghts, dt
+!f2py intent(in) :: z_scr, omega, Xgrid, Ygrid
+!f2py intent(in,out) :: spect
+!f2py intent(hide) :: nt, np, nom, nx, ny
+
+pi2 = 2.0d0*pi
+pi2_inv = 1.0d0/pi2
+
+dt_inv = 1.0d0/dt
+dt_2p = dt*pi2_inv
+
+!$omp parallel default(shared) private(spect_loc,ip,it,ix,iy,iom,wp, &
+!$omp                                  x_scr,y_scr,integral,coord, pointing, &
+!$omp                                  R_0,R_inv,veloc,gp_inv,arg_phase, &
+!$omp                                  phase_prv, arg_amp1,arg_amp2,omg, &
+!$omp                                  kotelnikov)
+
+allocate(spect_loc(nom,nx,ny))
+spect_loc = 0.0d0
+
+!$omp do schedule(static)
+do ip=1,np
+  wp = ABS(wghts(ip))
+  do ix=1,nx
+    x_scr = Xgrid(ix)
+    do iy=1,ny
+      y_scr =  Ygrid(iy)
+      integral = 0.0d0
+      phase_prv = 0.0d0
+      do it=1,nt
+        coord = coords(:,it,ip)
+        pointing(1) = z_scr - coord(1)
+        pointing(2) = y_scr - coord(2)
+        pointing(3) = x_scr - coord(3)
+        R_0 = SQRT(SUM(pointing*pointing))
+        R_inv = 1.0d0 / R_0
+        pointing = pointing * R_inv
+
+        veloc = momenta(:,it,ip)
+        gp_inv = 1.0d0 / SQRT(1.0d0+SUM(veloc*veloc))
+        veloc = veloc * gp_inv
+
+        arg_phase = ii * pi2 * (it*dt+R_0)
+        arg_amp1 = ii * dt * R_inv * (veloc-pointing)
+        arg_amp2 = dt * R_inv * R_inv * pi2_inv * pointing
+
+        kotelnikov =  ABS(arg_phase - phase_prv)
+        phase_prv = arg_phase
+
+        do iom=1,nom
+          omg = omega(iom)
+          if (kotelnikov*omg < pi2) then
+            integral(:,iom) = integral(:,iom) + (arg_amp1*omg+arg_amp2) &
+                                           *exp(arg_phase*omg)
+          endif
+        enddo
+      enddo
+      spect_loc(:,ix,iy) = spect_loc(:,ix,iy) &
+                         + wp*SUM(ABS(integral)**2, DIM=1)
+    enddo
+  enddo
+enddo
+!$omp end do 
+
+do iy=1,ny
+  do ix=1,nx
+    do iom=1,nom
+      !$omp atomic
+      spect(iom,ix,iy) = spect(iom,ix,iy) + spect_loc(iom,ix,iy) 
+    enddo
+  enddo
+enddo
+
+deallocate(spect_loc)
+!$omp barrier
+!$omp end parallel
+end subroutine
+
+subroutine sr_calc_nearcirc_comp(spect, coords, momenta, wghts, &
+                                 comp, dt, omega, Rgrid, SinPh, CosPh, &
+                                 z_scr, nt, np, nom, nr, nph)
+implicit none
+integer, intent(in) :: comp, nt, np, nr, nph, nom
+real(kind=8), dimension(3,nt,np), intent(in) :: coords,momenta
+real(kind=8), intent(in) :: wghts(np), dt, omega(nom)
+real(kind=8), intent(in) :: Rgrid(nr), SinPh(nph), CosPh(nph), z_scr
+real(kind=8), intent(inout) :: spect(nom,nr,nph)
+
+real (kind=8), allocatable    :: spect_loc(:,:,:)
+integer          :: ip, it, ir, iph, iom
+real (kind=8)    :: coord(3), veloc(3), pointing(3), sin_ph, cos_ph
+real (kind=8)    :: wp, gp_inv, x_scr, y_scr, omg, R_0, R_inv, kotelnikov
+real (kind=8)    :: pi2, pi2_inv, dt_inv, dt_2p, pi=4.0d0*DATAN(1.0d0)
+complex (kind=8) :: ii=(0.0d0,1.0d0), integral(nom) 
+complex (kind=8) :: arg_phase, arg_amp1, arg_amp2, phase_prv
+
+!f2py intent(in) :: coords, momenta, wghts, comp, dt
+!f2py intent(in) :: z_scr, omega, Rgrid, SinPh, CosPh
+!f2py intent(in,out) :: spect
+!f2py intent(hide) :: nt, np, nom, nr, nph
+
+pi2 = 2.0d0*pi
+pi2_inv = 1.0d0/pi2
+
+dt_inv = 1.0d0/dt
+dt_2p = dt*pi2_inv
+
+!$omp parallel default(shared) private(spect_loc,ip,it,ir,iph,iom,wp, &
+!$omp                                  x_scr,y_scr,integral,coord, pointing, &
+!$omp                                  R_0,R_inv,veloc,gp_inv,arg_phase, &
+!$omp                                  phase_prv, arg_amp1,arg_amp2,omg, &
+!$omp                                  kotelnikov,sin_ph,cos_ph)
+
+allocate(spect_loc(nom,nr,nph))
+spect_loc = 0.0d0
+
+!$omp do schedule(static)
+do ip=1,np
+  wp = ABS(wghts(ip))
+  do iph=1,nph
+    sin_ph = SinPh(iph)
+    cos_ph = CosPh(iph)
+    do ir=1,nr
+      x_scr = Rgrid(ir)*cos_ph
+      y_scr = Rgrid(ir)*sin_ph
+      integral = 0.0d0
+      phase_prv = 0.0d0
+      do it=1,nt
+        coord = coords(:,it,ip)
+        pointing(1) = z_scr - coord(1)
+        pointing(2) = y_scr - coord(2)
+        pointing(3) = x_scr - coord(3)
+        R_0 = SQRT(SUM(pointing*pointing))
+        R_inv = 1.0d0 / R_0
+        pointing = pointing * R_inv
+
+        veloc = momenta(:,it,ip)
+        gp_inv = 1.0d0 / SQRT(1.0d0+SUM(veloc*veloc))
+        veloc = veloc * gp_inv
+
+        arg_phase = ii * pi2 * (it*dt+R_0)
+        arg_amp1 = ii * dt * R_inv * (veloc(comp)-pointing(comp))
+        arg_amp2 = dt * R_inv * R_inv * pi2_inv * pointing(comp)
+
+        kotelnikov =  ABS(arg_phase - phase_prv)
+        phase_prv = arg_phase
+
+        do iom=1,nom
+          omg = omega(iom)
+          if (kotelnikov*omg < pi2) then
+            integral(iom) = integral(iom) + (arg_amp1*omg+arg_amp2) &
+                                           *exp(arg_phase*omg)
+          endif
+        enddo
+      enddo
+      spect_loc(:,ir,iph) = spect_loc(:,ir,iph) + wp*ABS(integral)**2
+    enddo
+  enddo
+enddo
+!$omp end do 
+
+do iph=1,nph
+  do ir=1,nr
+    do iom=1,nom
+      !$omp atomic
+      spect(iom,ir,iph) = spect(iom,ir,iph) + spect_loc(iom,ir,iph) 
+    enddo
+  enddo
+enddo
+
+deallocate(spect_loc)
+!$omp barrier
+!$omp end parallel
+end subroutine
+
+subroutine sr_calc_nearcirc_tot(spect, coords, momenta, wghts, &
+                                dt, omega, Rgrid, SinPh, CosPh, &
+                                z_scr, nt, np, nom, nr, nph)
+implicit none
+integer, intent(in) :: nt, np, nr, nph, nom
+real(kind=8), dimension(3,nt,np), intent(in) :: coords,momenta
+real(kind=8), intent(in) :: wghts(np), dt, omega(nom)
+real(kind=8), intent(in) :: Rgrid(nr), SinPh(nph), CosPh(nph), z_scr
+real(kind=8), intent(inout) :: spect(nom,nr,nph)
+
+real (kind=8), allocatable    :: spect_loc(:,:,:)
+integer          :: ip, it, ir, iph, iom
+real (kind=8)    :: coord(3), veloc(3), pointing(3), sin_ph, cos_ph
+real (kind=8)    :: wp, gp_inv, x_scr, y_scr, omg, R_0, R_inv, kotelnikov
+real (kind=8)    :: pi2, pi2_inv, dt_inv, dt_2p, pi=4.0d0*DATAN(1.0d0)
+complex (kind=8) :: ii=(0.0d0,1.0d0), integral(3,nom) 
+complex (kind=8) :: arg_phase, arg_amp1(3), arg_amp2(3), phase_prv
+
+!f2py intent(in) :: coords, momenta, wghts, dt
+!f2py intent(in) :: z_scr, omega, Rgrid, SinPh, CosPh
+!f2py intent(in,out) :: spect
+!f2py intent(hide) :: nt, np, nom, nr, nph
+
+pi2 = 2.0d0*pi
+pi2_inv = 1.0d0/pi2
+
+dt_inv = 1.0d0/dt
+dt_2p = dt*pi2_inv
+
+!$omp parallel default(shared) private(spect_loc,ip,it,ir,iph,iom,wp, &
+!$omp                                  x_scr,y_scr,integral,coord, pointing, &
+!$omp                                  R_0,R_inv,veloc,gp_inv,arg_phase, &
+!$omp                                  phase_prv, arg_amp1,arg_amp2,omg, &
+!$omp                                  kotelnikov,sin_ph,cos_ph)
+
+allocate(spect_loc(nom,nr,nph))
+spect_loc = 0.0d0
+
+!$omp do schedule(static)
+do ip=1,np
+  wp = ABS(wghts(ip))
+  do iph=1,nph
+    sin_ph = SinPh(iph)
+    cos_ph = CosPh(iph)
+    do ir=1,nr
+      x_scr = Rgrid(ir)*cos_ph
+      y_scr = Rgrid(ir)*sin_ph
+      integral = 0.0d0
+      phase_prv = 0.0d0
+      do it=1,nt
+        coord = coords(:,it,ip)
+        pointing(1) = z_scr - coord(1)
+        pointing(2) = y_scr - coord(2)
+        pointing(3) = x_scr - coord(3)
+        R_0 = SQRT(SUM(pointing*pointing))
+        R_inv = 1.0d0 / R_0
+        pointing = pointing * R_inv
+
+        veloc = momenta(:,it,ip)
+        gp_inv = 1.0d0 / SQRT(1.0d0+SUM(veloc*veloc))
+        veloc = veloc * gp_inv
+
+        arg_phase = ii * pi2 * (it*dt+R_0)
+        arg_amp1 = ii * dt * R_inv * (veloc-pointing)
+        arg_amp2 = dt * R_inv * R_inv * pi2_inv * pointing
+
+        kotelnikov =  ABS(arg_phase - phase_prv)
+        phase_prv = arg_phase
+
+        do iom=1,nom
+          omg = omega(iom)
+          if (kotelnikov*omg < pi2) then
+            integral(:,iom) = integral(:,iom) + (arg_amp1*omg+arg_amp2) &
+                                           *exp(arg_phase*omg)
+          endif
+        enddo
+      enddo
+      spect_loc(:,ir,iph) = spect_loc(:,ir,iph) & 
+                          + wp*SUM(ABS(integral)**2,DIM=1)
+    enddo
+  enddo
+enddo
+!$omp end do 
+
+do iph=1,nph
+  do ir=1,nr
+    do iom=1,nom
+      !$omp atomic
+      spect(iom,ir,iph) = spect(iom,ir,iph) + spect_loc(iom,ir,iph) 
+    enddo
+  enddo
+enddo
+
+deallocate(spect_loc)
+!$omp barrier
+!$omp end parallel
+end subroutine
+

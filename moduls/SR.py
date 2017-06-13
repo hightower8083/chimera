@@ -52,7 +52,7 @@ class SR:
 		else:
 			self.Args['dw'] = np.array([1.,])
 
-		if self.Args['Mode'] is 'far':
+		if self.Args['Mode'] == 'far':
 			Nth, Nph = Nx, Ny
 			theta_min, theta_max  = self.Args['Grid'][1]
 			phi_min, phi_max = self.Args['Grid'][2]
@@ -76,9 +76,7 @@ class SR:
 			  np.sin(self.Args['theta']),np.cos(self.Args['theta']), \
 			  np.sin(self.Args['phi']),np.cos(self.Args['phi']) ]
 
-			self.Args['coord_comp'] = 'coords'
-
-		elif self.Args['Mode'] is 'near':
+		elif self.Args['Mode'] == 'near':
 			x_min, x_max  = self.Args['Grid'][1]
 			y_min, y_max = self.Args['Grid'][2]
 			self.Args['Z'] = self.Args['Grid'][3]
@@ -101,27 +99,53 @@ class SR:
 			self.Args['DepFact'] = [self.Args['TimeStep'], self.Args['omega'], \
 			  self.Args['X'], self.Args['Y'], self.Args['Z']]
 
+		elif self.Args['Mode'] == 'near-circ':
+			Nr, Nph = Nx, Ny
+
+			r_min, r_max  = self.Args['Grid'][1]
+			phi_min, phi_max = self.Args['Grid'][2]
+			self.Args['Z'] = self.Args['Grid'][3]
+
+			self.Args['R'] = np.r_[r_min:r_max:Nr*1j]
+			self.Args['phi'] = phi_min + (phi_max-phi_min)/Nph*np.arange(Nph)
+
+			if Nr>1:
+				self.Args['dr'] = self.Args['R'][1]- self.Args['R'][0]
+			else:
+				self.Args['dr'] = 1.
+
+			if Nph>1:
+				self.Args['dph'] = self.Args['phi'][1]- self.Args['phi'][0]
+			else:
+				self.Args['dph'] = 1.
+
+			self.Args['dV'] = self.Args['dw']*self.Args['dr']*self.Args['dph']
+
+			self.Args['DepFact'] = [self.Args['TimeStep'], self.Args['omega'], \
+			                        self.Args['R'], np.sin(self.Args['phi']), \
+			                        np.cos(self.Args['phi']), self.Args['Z'] ]
+
 	def init_track(self,Steps,beam):
 		Nparts = beam.Data['coords'].shape[-1]
 		self.Args['step'] = 0
 		self.Data['coords'] = np.zeros((3,Steps,Nparts),order='F')
 		self.Data['weights'] = beam.Data['weights'].copy()
 
-		if self.Args['Mode'] is 'far':
+		if self.Args['Mode'] == 'far':
 			self.Data['momenta_nxt'] = np.zeros((3,Steps,Nparts),order='F')
 			self.Data['momenta_prv'] = np.zeros((3,Steps,Nparts),order='F')
 			beam.Data['momenta_prv'] = beam.Data['momenta'].copy()
-		elif self.Args['Mode'] is 'near':
+		elif self.Args['Mode'] == 'near' or self.Args['Mode'] == 'near-circ':
 			self.Data['momenta'] = np.zeros((3,Steps,Nparts),order='F')
 
 	def add_track(self,beam):
 		step = self.Args['step']
-		if self.Args['Mode'] is 'far':
+		if self.Args['Mode'] == 'far':
 			self.Data['coords'][:,step] = beam.Data['coords']
 			self.Data['momenta_prv'][:,step] = beam.Data['momenta_prv']
 			self.Data['momenta_nxt'][:,step] = beam.Data['momenta']
 			beam.Data['momenta_prv'][:] = beam.Data['momenta'][:]
-		elif self.Args['Mode'] is 'near':
+		elif self.Args['Mode'] == 'near' or self.Args['Mode'] == 'near-circ':
 			self.Data['coords'][:,step] = beam.Data['coords_halfstep']
 			self.Data['momenta'][:,step] = beam.Data['momenta']
 
@@ -130,9 +154,9 @@ class SR:
 	def damp_track(self,out_folder='./'):
 		tt = localtime()
 		tm_sgn = (tt.tm_hour,tt.tm_min,tt.tm_sec,tt.tm_mday,tt.tm_mon,tt.tm_year)
-		if self.Args['Mode'] is 'far':
+		if self.Args['Mode'] == 'far':
 			comps = ['coords','momenta_prv','momenta_nxt']
-		elif self.Args['Mode'] is 'near':
+		elif self.Args['Mode'] == 'near' or self.Args['Mode'] == 'near-circ':
 			comps = ['coords','momenta']
 
 		for comp in comps:
@@ -142,14 +166,16 @@ class SR:
 		self.Args['step'] = 0 ## TBD
 
 	def calculate_spectrum(self,comp='all'):
-		if self.Args['Mode'] is 'far':
+		if self.Args['Mode'] == 'far':
 			self.calculate_spectrum_far(comp=comp)
-		elif self.Args['Mode'] is 'near':
+		elif self.Args['Mode'] == 'near':
 			self.calculate_spectrum_near(comp=comp)
+		elif self.Args['Mode'] == 'near-circ':
+			self.calculate_spectrum_near_circ(comp=comp)
 
 	def calculate_spectrum_far(self,comp='all'):
 		if comp != 'all':
-			comps = {'x':0, 'y':1, 'z':2}
+			comps = {'x':1, 'y':2, 'z':3}
 			self.Data['Rad'] = chimera.sr_calc_far_comp(\
 			  self.Data['Rad'], \
 			  self.Data['coords'],self.Data['momenta_prv'],\
@@ -164,23 +190,35 @@ class SR:
 
 	def calculate_spectrum_near(self,comp='all'):
 		if comp != 'all':
-			comps = {'z':1, 'x':2, 'y':3}
+			comps = {'x':1, 'y':2, 'z':3}
 			self.Data['Rad'] = chimera.sr_calc_near_comp(\
 			  self.Data['Rad'], \
 			  self.Data['coords'],self.Data['momenta'],\
 			  self.Data['weights'], comps[comp], *self.Args['DepFact'])
 		else:
-			self.Data['Rad'] = chimera.sr_calc_far_tot(\
+			self.Data['Rad'] = chimera.sr_calc_near_tot(\
 			  self.Data['Rad'], \
-			  self.Data['coords'],self.Data['momenta_prv'],\
-			  self.Data['momenta_nxt'],\
+			  self.Data['coords'],self.Data['momenta'],\
+			  self.Data['weights'], *self.Args['DepFact'])
+
+	def calculate_spectrum_near_circ(self,comp='all'):
+		if comp != 'all':
+			comps = {'x':1, 'y':2, 'z':3}
+			self.Data['Rad'] = chimera.sr_calc_nearcirc_comp(\
+			  self.Data['Rad'], \
+			  self.Data['coords'],self.Data['momenta'],\
+			  self.Data['weights'], comps[comp], *self.Args['DepFact'])
+		else:
+			self.Data['Rad'] = chimera.sr_calc_nearcirc_tot(\
+			  self.Data['Rad'], \
+			  self.Data['coords'],self.Data['momenta'],\
 			  self.Data['weights'], *self.Args['DepFact'])
 
 	def get_full_spectrum(self, spect_filter=None, chim_units=True, \
 	  phot_num=False):
-		if self.Args['Mode'] is 'far':
+		if self.Args['Mode'] == 'far':
 			val = alpha_fs/(4*np.pi**2)*self.Data['Rad']
-		elif self.Args['Mode'] is 'near':
+		elif self.Args['Mode'] == 'near' or self.Args['Mode'] == 'near-circ':
 			val = alpha_fs*np.pi/4*self.Data['Rad']
 
 		if spect_filter is not None:
@@ -197,12 +235,16 @@ class SR:
 		val = self.get_full_spectrum( \
 		  spect_filter=spect_filter, chim_units=chim_units,phot_num=phot_num)
 
-		if self.Args['Mode'] is 'far':
+		if self.Args['Mode'] == 'far':
 			val = 0.5*self.Args['dth']*self.Args['dph']*( (val[1:] + val[:-1]) \
 			  *np.sin(self.Args['theta'][None,:,None]) ).sum(-1).sum(-1)
-		elif self.Args['Mode'] is 'near':
+		elif self.Args['Mode'] == 'near':
 			val = 0.5*self.Args['dx']*self.Args['dy'] \
 			      *(val[1:] + val[:-1]).sum(-1).sum(-1)
+		elif self.Args['Mode'] == 'near-circ':
+			val = 0.5*self.Args['dr']*self.Args['dph']*( (val[1:] + val[:-1]) \
+			  *self.Args['R'][None,:,None] ).sum(-1).sum(-1)
+
 		return val
 
 	def get_energy(self,spect_filter=None, chim_units=True):
@@ -236,11 +278,20 @@ class SR:
 		val = self.get_spot(spect_filter=spect_filter, \
 		  chim_units=chim_units, k0=k0, phot_num=phot_num)
 
-		th,ph = self.Args['theta'], self.Args['phi']
+		if self.Args['Mode'] == 'far':
+			th,ph = self.Args['theta'], self.Args['phi']
+		elif self.Args['Mode'] == 'near-circ':
+			th,ph = self.Args['R'], self.Args['phi']
+		else:
+			print("This function is for 'far' and 'near-circ' modes only")
+
 		ph,th = np.meshgrid(ph,th)
-		coord = ((np.sin(th)*np.cos(ph)).flatten(),\
-		  (np.sin(th)*np.sin(ph)).flatten())
 		th_max = th_part*th.max()
+
+		coord = ((th*np.cos(ph)).flatten(), (th*np.sin(ph)).flatten())
+#		coord = ((np.sin(th)*np.cos(ph)).flatten(),\
+#		  (np.sin(th)*np.sin(ph)).flatten())
+
 		new_coord = np.mgrid[-th_max:th_max:bins[0]*1j,-th_max:th_max:bins[1]*1j]
 		val = griddata(coord,val.flatten(),
 		    (new_coord[0].flatten(), new_coord[1].flatten()),
