@@ -282,14 +282,14 @@ class SR:
 		if k0 is None:
 			if val.shape[0]>1:
 				val = 0.5*(val[1:] + val[:-1])
-			val = self.J_in_um*(val*self.Args['dw'][:,None,None]).sum(0)
+			val = (val*self.Args['dw'][:,None,None]).sum(0)
 		else:
 			ax = self.Args['omega']
 			indx = (ax<k0).sum()
 			if np.abs(self.Args['omega'][indx+1]-k0) \
 			  < np.abs(self.Args['omega'][indx]-k0):
 				indx += 1
-			val = self.J_in_um*val[indx]
+			val = val[indx]
 		return val
 
 	def get_spot_cartesian(self, k0=None, th_part=1.0, bins=(200,200), \
