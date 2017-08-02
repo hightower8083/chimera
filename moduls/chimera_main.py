@@ -320,7 +320,7 @@ class ChimeraRun():
 
 
 #########################################################################
-########## TO BE CHANGED INTO DIAG ######################################
+########## TBD: CHANGE INTO openPMD DIAG ################################
 
 	def drop_snap(self,fname='./snap_',verbose=False):
 		fname += time.ctime().replace(' ','_').replace(':','-')+'.hdf5'
