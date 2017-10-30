@@ -356,12 +356,13 @@ class Specie:
 		Parameters
 		----------
 		wind: dict (optional)
-		  if routine is called by a moving window, its configurations to be provided
+		  if routine is called by a moving window, its configurations 
+		  should be provided
 		SimDom: list (optional)
 		  the boundaries of the domain may be specified explicitly
 		position: string
-		  to consider either particles coordinates at t=n*dt (staggered from momenta)
-		  or t=(n-1/2)*dt (sychronized with momenta)
+		  to consider either particles coordinates at t=n*dt 
+		  (staggered from momenta) or t=(n-1/2)*dt (sychronized with momenta)
 		"""
 
 		if self.Data['coords'].shape[-1] == 0: return
@@ -369,7 +370,7 @@ class Specie:
 		if wind is None:
 			wind = {'Features':(),'AbsorbLayer':0.0}
 
-		if SimDom is None:
+		if SimDom is None and wind is not None:
 			SimDom = np.asfortranarray([\
 			  self.Args['leftX'] + wind['AbsorbLayer']*self.Args['dx'],\
 			  self.Args['rightX'], 0.0, self.Args['upperR']**2])
