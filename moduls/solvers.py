@@ -145,6 +145,8 @@ class Solver:
 		  0.5e-2 * (m_e*c**2/e)**2 * (4*np.pi*epsilon_0) \
 		  * self.Args['lengthR']**2 / self.Args['dkx'] \
 		  * jn(tmp_idx, self.Args['kr_g'] * self.Args['lengthR'])**2
+		if 'KxShift' not in self.Args:
+			self.Args['EnergyFact'] *= 0.5
 
 		# Reshape spectral operators and fix all arrays to Fortran order
 		for kw in ('DpS2S','DmS2S','InCurr','In','Out'):
@@ -458,9 +460,9 @@ class Solver:
 		self.Data['EB'] = chimera.fb_eb_out(self.Data['EB'],self.Data['EG_fb'],\
 		  self.Data['B_fb'],self.Args['leftX'],*self.Args['FBout'])
 		if 'KxShift' in self.Args:
-			self.Data['EB'] = chimera.eb_corr_axis_env(self.Data['EB'])
+			self.Data['EB'] = chimera.eb_correction_env(self.Data['EB'])
 		else:
-			self.Data['EB'] = chimera.eb_corr_axis(self.Data['EB'])
+			self.Data['EB'] = chimera.eb_correction(self.Data['EB'])
 
 	def FBGrad(self):
 		"""
@@ -580,8 +582,8 @@ class Solver:
 			   -0.25*kr_g[:,:,self.Args['Nko']]**2*S['LR']**2 )
 			DT = -1.j * w
 		else:
-			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# sin phase
-			self.Data['scl_spc'][:,:,0] = a0 * np.sin(k0*(Xgrid[:,None]-S['x0'])) *\
+			Xgrid,Rgrid = self.Args['Xgrid'],self.Args['Rgrid']	# cos phase
+			self.Data['scl_spc'][:,:,0] = a0 * np.cos(k0*(Xgrid[:,None]-S['x0'])) *\
 			  np.exp(-(Xgrid[:,None]-S['x0'])**2/S['Lx']**2 \
 			  - Rgrid[None,:]**2/S['LR']**2) * (abs(Rgrid[None,:])< 3.5*S['LR']) \
 			  * (abs(Xgrid[:,None]-S['x0'])< 3.5*S['Lx'])
@@ -614,14 +616,20 @@ class Solver:
 		  * (0.5 - 0.5*np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))**2
 		return filt_shape
 
-	def damp_field(self,config='left'):
+	def damp_field(self, config='left', damp_b=True):
 		mode = {'left':0,'right':1,'both':2}
 		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(\
 		  self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],self.Args['kx'],\
 		  self.Args['damp_profile'], mode[config])
-		self.Data['EG_fb'][:,:,:,3:] = chimera.fb_filtr(\
-		  self.Data['EG_fb'][:,:,:,3:],self.Args['leftX'],self.Args['kx'],\
-		  self.Args['damp_profile'], mode[config])
+		if damp_b == True:
+			self.Data['B_fb'] = chimera.fb_filtr(\
+			  self.Data['B_fb'],self.Args['leftX'],self.Args['kx'],\
+			  self.Args['damp_profile'], mode[config])
+			self.B2G_FBRot()
+		else:
+			self.Data['EG_fb'][:,:,:,3:] = chimera.fb_filtr(\
+			  self.Data['EG_fb'][:,:,:,3:],self.Args['leftX'],self.Args['kx'],\
+			  self.Args['damp_profile'], mode[config])
 
 	def FBRot(self):
 		if 'KxShift' in self.Args:
