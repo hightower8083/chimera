@@ -616,7 +616,7 @@ class Solver:
 		  * (0.5 - 0.5*np.cos(np.pi*(flt_gr-0.75*Nfilt)/(0.25*Nfilt)))**2
 		return filt_shape
 
-	def damp_field(self, config='left', damp_b=True):
+	def damp_field(self, config='left', damp_b=False):
 		mode = {'left':0,'right':1,'both':2}
 		self.Data['EG_fb'][:,:,:,:3] = chimera.fb_filtr(\
 		  self.Data['EG_fb'][:,:,:,:3],self.Args['leftX'],self.Args['kx'],\
