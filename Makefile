@@ -1,7 +1,7 @@
 F90 = f2py
 PGM = fimera
-FFT = $(HOME)/CODES/fftw
-#FFT = /usr
+#FFT = $(HOME)/CODES/fftw
+FFT = /usr
 
 
 SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
