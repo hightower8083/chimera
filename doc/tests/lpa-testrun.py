@@ -29,7 +29,7 @@ densprof = lambda x: np.interp(x, [0.,40.,50.,300],[0.,1.,0.5,0.5])
 
 solver_in = {
     'Grid':(xgmin, xgmax,Rg,dx,dr),'TimeStep':dt, 'MaxAzimuthMode':1,
-    'Xchunked':(4,5),'Features':('SpaceCharge','StillAsBackground',)
+    'Xchunked':(4,10),'Features':('SpaceCharge','StillAsBackground',)
 }
 
 laser_in = {
@@ -42,7 +42,7 @@ solver.add_gauss_beam(laser_in)
 electrons_in = {
     'Grid':(xgmin, xgmax,Rg,dx,dr), 'TimeStep':dt,
     'Density':dens, 'FixedCell':(2,2,4),
-    'Xchunked':(4,5),'Features':('NoSorting',)
+    'Xchunked':(4,10),'Features':('NoSorting',)
 }
 
 ions_in = deepcopy(electrons_in)
@@ -54,15 +54,15 @@ electrons = Specie(electrons_in)
 ions = Specie(ions_in)
 
 MovingFrame = {
-    'TimeStep':dt,'Steps':5,'AbsorbLayer':175,'AddPlasma':densprof,'Features':('IonsOnTop',)
-}
+    'TimeStep':dt,'Steps':10,'AbsorbLayer':175,
+    'AddPlasma':densprof,'Features':('IonsOnTop',)}
 
 chimera_in = {
-    'Solvers':(solver,),'Particles':(electrons,ions),'MovingFrames':(MovingFrame,)
-}
+    'Solvers':(solver, ), 'Particles':(electrons, ions),
+    'MovingFrames':(MovingFrame, )}
 
 Chimera = ChimeraRun(chimera_in)
-Diags = Diagnostics(Chimera,(),out_folder=None)
+Diags = Diagnostics(Chimera, (), out_folder=None)
 
 ti = time.time()
 for i in range(1,SimulationSteps+1):
