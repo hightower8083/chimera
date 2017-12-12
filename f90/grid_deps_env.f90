@@ -237,7 +237,7 @@ enddo
 !$omp end parallel
 end subroutine
 
-subroutine eb_corr_axis_env(eb_spc,nx,nr,nkO)
+subroutine eb_correction_env(eb_spc,nx,nr,nkO)
 implicit none 
 integer, intent(in)        :: nx,nr,nkO
 complex(kind=8),intent(inout):: eb_spc(0:nx,0:nr,-nkO:nkO,6) 
