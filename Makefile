@@ -8,12 +8,12 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
              ./f90/particle_tools.f90     ./f90/devices.f90         \
              ./f90/utils.f90              ./f90/SR.f90
 
-FFTI = /usr/include
-FFTL = /usr/lib
+#FFTI = /usr/include
+#FFTL = /usr/lib
 
 #    Example of the path to a local build of FFTW
-# FFTI = /usr/include #$(HOME)/CODES/fftw/include
-# FFTL = /usr/lib #$(HOME)/CODES/fftw/lib
+FFTI = $(HOME)/CODES/fftw/include
+FFTL = $(HOME)/CODES/fftw/lib
 
 FLAGS_G = -c --opt='-O3 -ffast-math -march=native -fopenmp          \
           -lm -lfftw3 -I$(FFTI)' -L$(FFTL) -lm -lfftw3 -lgomp
