@@ -167,12 +167,12 @@ class Solver:
 			kx_base = (self.Args['kx_env'],)
 		else:
 			kx_max = np.abs(self.Args['kx_g']).max()
-			filt_x = np.cos(np.pi/2*self.Args['kx_g']/kx_max)[:,:,None]**2
+			filt_x = np.cos(0.5*self.Args['dx']*self.Args['kx_g'])[:,:,None]**2
 			kx_base = (self.Args['kx'],)
 
 		kr_max = self.Args['kr_g'].max(0).max(0)
 		self.Args['DepFact'] = (2*np.pi)**2  / self.Args['Nx'] * filt_x \
-		                       * np.cos(np.pi/2*self.Args['kr_g']/kr_max)**2
+		                       * np.cos(0.5*self.Args['dr']*self.Args['kr_g'])**2
 		self.Args['DepFact'] =  np.asfortranarray(self.Args['DepFact'])
 
 		self.Args['FBCurrIn']  = kx_base + (self.Args['InCurr'],)
@@ -298,7 +298,7 @@ class Solver:
 			  self.Data['EG_fb'],self.Data['J_fb'],\
 			  self.Data['PSATD_E'],self.Data['PSATD_G'])
 
-	def poiss_corr(self,poiss_corr_num = 2):
+	def poiss_corr(self,poiss_corr_num = 3):
 		"""
 		Add the current Poisson correction
 
