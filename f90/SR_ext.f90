@@ -27,7 +27,7 @@ real(kind=8), intent(inout) :: spect(nom,nth,nph)
 real (kind=8), allocatable    :: spect_loc(:,:,:)
 integer          :: ip,it,ith,iph,iom
 real (kind=8)    :: coord(3),accel(3),veloc_prv(3),veloc_nxt(3),veloc(3)
-real (kind=8)    :: wp,gp_inv
+real (kind=8)    :: wp_sqrt, gp_inv
 real (kind=8)    :: C1, C2, C4(3),  C3, C2_inv, C2_inv2, C3_prev, dPhase
 real (kind=8)    :: dt_inv,dt2p,pi=4.d0*DATAN(1.d0)
 real (kind=8)    :: sin_th,cos_th,sin_ph,cos_ph,omg
@@ -43,13 +43,14 @@ dt_inv = 1.0d0/dt
 dt2p = dt/(2.0d0*pi)
 
 !$omp parallel default(shared) private(spect_loc,ip,it,ith,iph,iom,coord,  &
-!$omp                                  accel,veloc_prv,veloc_nxt,veloc,wp, &
+!$omp                                  accel,veloc_prv,veloc_nxt,veloc,wp_sqrt, &
 !$omp                                  gp_inv, C1,C2, C3, C4,   &
 !$omp                                  C2_inv, C2_inv2, sin_th,cos_th,     &
 !$omp                                  sin_ph,cos_ph,omg,integral, C3_prev, dPhase)
 
 allocate(spect_loc(nom,nth,nph))
 spect_loc = 0.0d0
+wp_sqrt = 0.0d0
 
 !$omp do schedule(static)
 do ip=1,np
@@ -60,23 +61,22 @@ do ip=1,np
       sin_th = SinTh(ith)
       cos_th = CosTh(ith)
       integral = 0.0d0
-      !integral2 = 0.0d0
-      !integral3 = 0.0d0
 
       C3_prev = 0.0
       dPhase = 0.0
 
       do it=1,nt
-        wp = ABS(wghts(it,ip))
-        if  (wp == 0.0) CYCLE
+
+        wp_sqrt = SQRT(ABS(wghts(it,ip)))
+        if  (wp_sqrt == 0.0) CYCLE
 
         coord = coords(:,it,ip)
         veloc_prv = momenta_prv(:,it,ip)
         veloc_nxt = momenta_nxt(:,it,ip)
 
-        gp_inv = 1.0d0/SQRT(1.0d0+ SUM(veloc_prv*veloc_prv) )
+        gp_inv = 1.0d0/SQRT(1.0d0 + SUM(veloc_prv*veloc_prv) )
         veloc_prv = veloc_prv*gp_inv
-        gp_inv = 1.0d0/SQRT(1.0d0+ SUM(veloc_nxt*veloc_nxt) )
+        gp_inv = 1.0d0/SQRT(1.0d0 + SUM(veloc_nxt*veloc_nxt) )
         veloc_nxt = veloc_nxt*gp_inv
 
         accel = (veloc_nxt - veloc_prv)*dt_inv
@@ -89,7 +89,7 @@ do ip=1,np
 
         C1 = accel(3)*sin_th*cos_ph + accel(2)*sin_th*sin_ph + accel(1)*cos_th
         C3 = 2.0d0 * pi * (it*dt - (coord(3)*sin_th*cos_ph &
-                           + coord(2)*sin_th*sin_ph
+                           + coord(2)*sin_th*sin_ph &
                            + coord(1)*cos_th))
 
         dPhase = C3 - C3_prev
@@ -101,14 +101,13 @@ do ip=1,np
 
         do iom=1,nom
           omg = omega(iom)
-          !if (2.0d0 * omg * dt * C2 <= 1.0d0) then
           if (omg * dPhase < pi ) then
-            integral(:,iom) = integral(:,iom) + C4*dt*exp(ii*omg*C3)
+            integral(:,iom) = integral(:,iom) + C4*dt*exp(ii*omg*C3)*wp_sqrt
           endif
         enddo
       enddo
       spect_loc(:,ith,iph) = spect_loc(:,ith,iph) &
-         + wp*SUM(ABS(integral)**2,DIM=1)
+         + SUM(ABS(integral)**2,DIM=1)
     enddo
   enddo
 enddo
