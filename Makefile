@@ -9,7 +9,7 @@ SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
              ./f90/grid_deps_env.f90      ./f90/grid_deps_chnk.f90  \
              ./f90/grid_deps_env_chnk.f90 ./f90/maxwell_solvers.f90 \
              ./f90/particle_tools.f90     ./f90/devices.f90         \
-             ./f90/utils.f90              ./f90/SR.f90
+             ./f90/utils.f90              ./f90/SR_ext.f90
 
 FLAGS_G = -c --opt='-O3 -ffast-math -march=native -fopenmp          \
           -lm -lfftw3 -I$(FFT)/include' -L$(FFT)/lib -lm -lfftw3 -lgomp
