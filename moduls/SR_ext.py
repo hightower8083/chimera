@@ -156,15 +156,15 @@ class SR:
 	def add_track(self,beam):
 		step = self.Args['step']
 		if self.Args['Mode'] == 'far':
-			self.Data['coords'][:,step] = beam.Data['coords']
-			self.Data['momenta_prv'][:,step] = beam.Data['momenta_prv']
-			self.Data['momenta_nxt'][:,step] = beam.Data['momenta']
+			self.Data['coords'][:,step,:] = beam.Data['coords']
+			self.Data['momenta_prv'][:,step,:] = beam.Data['momenta_prv']
+			self.Data['momenta_nxt'][:,step,:] = beam.Data['momenta']
 			beam.Data['momenta_prv'][:] = beam.Data['momenta'][:]
 		elif self.Args['Mode'] == 'near' or self.Args['Mode'] == 'near-circ':
-			self.Data['coords'][:,step] = beam.Data['coords_halfstep']
-			self.Data['momenta'][:,step] = beam.Data['momenta']
+			self.Data['coords'][:,step,:] = beam.Data['coords_halfstep']
+			self.Data['momenta'][:,step,:] = beam.Data['momenta']
 
-		self.Data['weights'][step] = beam.Data['weights']
+		self.Data['weights'][step,:] = beam.Data['weights']
 
 		self.Args['step'] += 1
 
