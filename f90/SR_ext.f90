@@ -25,25 +25,24 @@ real(kind=8), intent(in) :: SinTh(nth),CosTh(nth),SinPh(nph),CosPh(nph)
 real(kind=8), intent(inout) :: spect(nom,nth,nph)
 
 real (kind=8), allocatable    :: spect_loc(:,:,:)
-integer          :: ip,it,ith,iph,iom
-real (kind=8)    :: coord(3),accel(3),veloc_prv(3),veloc_nxt(3),veloc(3)
+integer          :: ip, it, ith, iph, iom
+real (kind=8)    :: coord(3), accel(3), veloc_prv(3), veloc_nxt(3), veloc(3)
 real (kind=8)    :: wp_sqrt, gp_inv
 real (kind=8)    :: C1, C2, C4(3),  C3, C2_inv, C2_inv2, C3_prev, dPhase
-real (kind=8)    :: dt_inv,dt2p,pi=4.d0*DATAN(1.d0)
-real (kind=8)    :: sin_th,cos_th,sin_ph,cos_ph,omg
-complex (kind=8) :: ii=(0.0d0,1.0d0), integral(3,nom)
-!complex (kind=8) :: integral2(nom),integral3(nom)
+real (kind=8)    :: dt_inv, dt2p,pi=4.d0*DATAN(1.d0)
+real (kind=8)    :: sin_th, cos_th, sin_ph, cos_ph, omg
+complex (kind=8) :: ii=(0.0d0, 1.0d0), integral(3, nom)
 
-!f2py intent(in) :: coords,momenta_prv,momenta_nxt,wghts,dt
-!f2py intent(in) :: omega,SinTh,CosTh,SinPh,CosPh
+!f2py intent(in) :: coords, momenta_prv, momenta_nxt, wghts, dt
+!f2py intent(in) :: omega, SinTh, CosTh, SinPh, CosPh
 !f2py intent(in,out) :: spect
-!f2py intent(hide) :: nt,np,nom,nth,nph
+!f2py intent(hide) :: nt, np, nom, nth, nph
 
-dt_inv = 1.0d0/dt
-dt2p = dt/(2.0d0*pi)
+dt_inv = 1.0d0 / dt
+dt2p = dt / (2.0d0*pi)
 
-!$omp parallel default(shared) private(spect_loc,ip,it,ith,iph,iom,coord,  &
-!$omp                                  accel,veloc_prv,veloc_nxt,veloc,wp_sqrt, &
+!$omp parallel default(shared) private(spect_loc, ip, it, ith, iph, iom,coord, &
+!$omp                                  accel, veloc_prv, veloc_nxt, veloc,wp_sqrt, &
 !$omp                                  gp_inv, C1,C2, C3, C4,   &
 !$omp                                  C2_inv, C2_inv2, sin_th,cos_th,     &
 !$omp                                  sin_ph,cos_ph,omg,integral, C3_prev, dPhase)
@@ -53,11 +52,11 @@ spect_loc = 0.0d0
 wp_sqrt = 0.0d0
 
 !$omp do schedule(static)
-do ip=1,np
-  do iph=1,nph
+do ip=1, np
+  do iph=1, nph
     sin_ph = SinPh(iph)
     cos_ph = CosPh(iph)
-    do ith=1,nth
+    do ith=1, nth
       sin_th = SinTh(ith)
       cos_th = CosTh(ith)
       integral = 0.0d0
@@ -65,7 +64,7 @@ do ip=1,np
       C3_prev = 0.0
       dPhase = 0.0
 
-      do it=1,nt
+      do it=1, nt
 
         wp_sqrt = SQRT(ABS(wghts(it,ip)))
         if  (wp_sqrt == 0.0) CYCLE

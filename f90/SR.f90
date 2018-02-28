@@ -61,8 +61,6 @@ do ip=1,np
       sin_th = SinTh(ith)
       cos_th = CosTh(ith)
       integral = 0.0d0
-      !integral2 = 0.0d0
-      !integral3 = 0.0d0
 
       C3_prev = 0.0
       dPhase = 0.0
@@ -98,8 +96,7 @@ do ip=1,np
 
         do iom=1,nom
           omg = omega(iom)
-          !if (2.0d0 * omg * dt * C2 <= 1.0d0) then
-          if (omg * dPhase < 2*pi ) then
+          if (omg * dPhase < pi ) then
             integral(:,iom) = integral(:,iom)+C4*dt*exp(ii*omg*C3)
             !integral2(iom) = integral2(iom)+C42*dt*exp(ii*omg*C3)
             !integral3(iom) = integral3(iom)+C43*dt*exp(ii*omg*C3)
@@ -141,7 +138,7 @@ real (kind=8), allocatable    :: spect_loc(:,:,:)
 integer          :: ip,it,ith,iph,iom
 real (kind=8)    :: coord(3),accel(3),veloc_prv(3),veloc_nxt(3),veloc(3)
 real (kind=8)    :: wp,gp_inv
-real (kind=8)    :: C1, C2, C4, C3,C2_inv, C2_inv2
+real (kind=8)    :: C1, C2, C4, C3, C2_inv, C2_inv2, C3_prev, dPhase
 real (kind=8)    :: dt_inv,dt2p,pi=4.d0*DATAN(1.d0)
 real (kind=8)    :: sin_th,cos_th,sin_ph,cos_ph,omg
 complex (kind=8) :: ii=(0.0d0,1.0d0), integral(nom)
@@ -157,7 +154,8 @@ dt2p = dt/(2.0d0*pi)
 !$omp parallel default(shared) private(spect_loc,ip,it,ith,iph,iom,coord, &
 !$omp                                  accel,veloc_prv,veloc_nxt,veloc,   &
 !$omp                                  wp,gp_inv,C1,C2, C4, C3,C2_inv,    &
-!$omp                                  C2_inv2,sin_th,cos_th,sin_ph,cos_ph,&
+!$omp                                  C2_inv2, C3_prev, dPhase,          &
+!$omp                                  sin_th,cos_th,sin_ph,cos_ph,       &
 !$omp                                  omg,integral)
 
 allocate(spect_loc(nom,nth,nph))
@@ -167,12 +165,20 @@ spect_loc = 0.0d0
 do ip=1,np
   wp = ABS(wghts(ip))
   do iph=1,nph
+
     sin_ph = SinPh(iph)
     cos_ph = CosPh(iph)
+
     do ith=1,nth
+
       sin_th = SinTh(ith)
       cos_th = CosTh(ith)
+
       integral = 0.0d0
+
+      C3_prev = 0.0d0
+      dPhase = 0.0
+
       do it=1,nt
         coord = coords(:,it,ip)
         veloc_prv = momenta_prv(:,it,ip)
@@ -195,6 +201,9 @@ do ip=1,np
         C3 = 2.0d0 * pi * (it*dt - (coord(3)*sin_th*cos_ph &
              + coord(2)*sin_th*sin_ph + coord(1)*cos_th))
 
+        dPhase = C3 - C3_prev
+        C3_prev = C3
+
         if    (comp==1) then
           C4 = ( C1*(       cos_th-veloc(1)) - C2*accel(1) )*C2_inv2
         elseif(comp==2) then
@@ -207,7 +216,7 @@ do ip=1,np
 
         do iom=1,nom
           omg = omega(iom)
-          if (2.0d0*omg*dt*C2 <= 1.0d0) then
+          if (omg * dPhase < pi ) then
             integral(iom) = integral(iom)+C4*dt*exp(ii*omg*C3)
           endif
         enddo

@@ -251,6 +251,57 @@ enddo
 !$omp end parallel
 end subroutine
 
+subroutine GaussBeam(coord, Fld, time, a0, params, np)
+
+implicit none
+integer, intent(in) :: np
+real (kind=8), intent(in) :: time, params(8), a0
+real (kind=8), dimension(3, np), intent(in) :: coord
+real (kind=8), dimension(6, np), intent(inout) :: Fld
+
+real (kind=8) :: axis, lambda, E_field, pi=4.d0*DATAN(1.d0), &
+                 xp, yp, zp, x0, y0, z0, &
+                 Lx2_inv, Ly2_inv, Lz2_inv
+integer       :: ip
+
+!f2py intent(in) :: coord, time, params, a0
+!f2py intent(in,out) :: Fld
+!f2py intent(hide) :: np
+
+lambda = params(1)
+axis = params(2)
+
+x0 = params(3)
+y0 = params(4)
+z0 = params(5)
+
+Lx2_inv = 1.0 / (params(6)*params(6))
+Ly2_inv = 1.0 / (params(7)*params(7))
+Lz2_inv = 1.0 / (params(8)*params(8))
+
+!$omp parallel default(shared) private(ip, xp, yp, zp, E_field)
+!$omp do schedule(static)
+do ip=1,np
+    xp = coord(1, ip) - x0 - axis*time
+    yp = coord(2, ip) - y0
+    zp = coord(3, ip) - z0
+
+    E_field = a0 * EXP( -xp*xp*Lx2_inv - yp*yp*Ly2_inv - zp*zp*Lz2_inv ) &
+              * sin(2.d0*pi/lambda*xp)
+
+    Fld(3,ip) = Fld(3,ip) + E_field
+    Fld(5,ip) = Fld(5,ip) - axis*E_field
+enddo
+!$omp end do
+!$omp end parallel
+end subroutine
+
+
+!######################################################
+!############# OLD STUFF ##############################
+!######################################################
+
+
 subroutine Pulse_circ(coord,Fld,time,a0,param_spc,params,num_part)
 
 implicit none
@@ -285,7 +336,6 @@ Fld(6,:) = Fld(6,:) - Fld(2,:)
 
 end subroutine
 
-
 subroutine Pulse(coord,Fld,time,a0,param_spc,params,num_part)
 
 implicit none
@@ -316,3 +366,4 @@ Fld(3,:) = Fld(3,:) + env
 Fld(4,:) = Fld(4,:) - env*SIN(angl)
 Fld(5,:) = Fld(5,:) - env*COS(angl)
 end subroutine
+
