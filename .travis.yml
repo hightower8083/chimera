@@ -28,7 +28,8 @@ addons:
 script:
   ########################################################
   # build
-  - make gfortran FFTI=/usr/include
+  - export CONDA_PREFIX=$HOME/miniconda2/envs/testing/
+  - make
   # run examples
   - export OMP_NUM_THREADS=4
   - export PYTHONPATH=":$PWD/../:$PYTHONPATH"
