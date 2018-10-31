@@ -19,7 +19,7 @@ subroutine sr_calc_far_tot(spect,coords,momenta_prv,momenta_nxt,wghts,dt,&
                            omega,SinTh,CosTh,SinPh,CosPh,nt,np,nom,nth,nph)
 implicit none
 integer, intent(in) :: nt,np,nth,nph,nom
-real(kind=8), dimension(3,nt,np), intent(in) :: coords,momenta_prv,momenta_nxt
+real(kind=8), dimension(3,nt,np), intent(in) :: coords, momenta_prv, momenta_nxt
 real(kind=8), intent(in) :: wghts(np), dt, omega(nom)
 real(kind=8), intent(in) :: SinTh(nth),CosTh(nth),SinPh(nph),CosPh(nph)
 real(kind=8), intent(inout) :: spect(nom,nth,nph)
@@ -87,22 +87,34 @@ do ip=1,np
         C3 = 2.0d0 * pi * (it*dt-(coord(3)*sin_th*cos_ph &
              + coord(2)*sin_th*sin_ph + coord(1)*cos_th))
 
-        dPhase = C3 - C3_prev
+        dPhase = ABS(C3 - C3_prev)
         C3_prev = C3
 
         C4(1) = ( C1*(       cos_th-veloc(1)) - C2*accel(1) )*C2_inv2
         C4(2) = ( C1*(sin_ph*sin_th-veloc(2)) - C2*accel(2) )*C2_inv2
-        C4(3) = ( C1*(sin_th*cos_ph-veloc(3)) - C2*accel(3) )*C2_inv2
+        C4(3) = ( C1*(cos_ph*sin_th-veloc(3)) - C2*accel(3) )*C2_inv2
 
         do iom=1,nom
           omg = omega(iom)
           if (omg * dPhase < pi ) then
             integral(:,iom) = integral(:,iom)+C4*dt*exp(ii*omg*C3)
-            !integral2(iom) = integral2(iom)+C42*dt*exp(ii*omg*C3)
-            !integral3(iom) = integral3(iom)+C43*dt*exp(ii*omg*C3)
           endif
         enddo
       enddo
+
+!     # Theta component
+!      spect_loc(:,ith,iph) = spect_loc(:,ith,iph) &
+!         + wp*ABS(integral(3,:)*cos_th*cos_ph + integral(2,:)*cos_th*sin_ph - integral(1,:)*sin_th)**2
+
+!     # R component
+!      spect_loc(:,ith,iph) = spect_loc(:,ith,iph) &
+!         + wp*ABS(integral(3,:)*sin_th*cos_ph + integral(2,:)*sin_th*sin_ph - integral(1,:)*cos_th)**2
+
+!     # Phi component
+!      spect_loc(:,ith,iph) = spect_loc(:,ith,iph) &
+!         + wp*ABS(-integral(3,:)*sin_ph + integral(2,:)*cos_ph)**2
+
+!     # Total
       spect_loc(:,ith,iph) = spect_loc(:,ith,iph) &
          + wp*SUM(ABS(integral)**2,DIM=1)
     enddo
@@ -201,7 +213,7 @@ do ip=1,np
         C3 = 2.0d0 * pi * (it*dt - (coord(3)*sin_th*cos_ph &
              + coord(2)*sin_th*sin_ph + coord(1)*cos_th))
 
-        dPhase = C3 - C3_prev
+        dPhase = ABS(C3 - C3_prev)
         C3_prev = C3
 
         if    (comp==1) then

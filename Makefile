@@ -51,5 +51,10 @@ clean :
            ./*.pyc ./moduls/*.pyc ./utils/*.pyc  \
            ./.nfs0* ./moduls/.nfs0* ./f90/.nfs0* \
            ./doc/.ipynb_checkpoints ./.DS_Store
+
 install :
 	cp -r ../chimera $(CONDA_PREFIX)/lib/python3.6/site-packages/
+
+uninstall :
+	rm -rf $(CONDA_PREFIX)/lib/python3.6/site-packages/chimera
+
