@@ -1,8 +1,6 @@
 F90 = f2py
 PGM = fimera
-#FFT = $(HOME)/CODES/fftw
-FFT = /usr
-
+FFT = $(CONDA_PREFIX)
 
 SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
              ./f90/fb_math_env.f90        ./f90/grid_deps.f90       \
@@ -53,3 +51,5 @@ clean :
            ./*.pyc ./moduls/*.pyc ./utils/*.pyc  \
            ./.nfs0* ./moduls/.nfs0* ./f90/.nfs0* \
            ./doc/.ipynb_checkpoints ./.DS_Store
+install :
+	cp -r ../chimera $(CONDA_PREFIX)/lib/python3.6/site-packages/
