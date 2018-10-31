@@ -18,13 +18,12 @@ before_install:
   - source activate testing
 
 install:
-  - conda install --yes -c conda-forge numpy scipy h5py
+  - conda install --yes -c conda-forge numpy scipy h5py fftw
 
 addons:
   apt:
     packages:
       - gfortran
-      - libfftw3-dev
 
 script:
   ########################################################
