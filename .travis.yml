@@ -19,8 +19,8 @@ before_install:
   - export CONDA_PREFIX=$HOME/miniconda2/envs/testing/
 
 install:
-  - conda install --yes gcc fftw
-  - conda install --yes -c conda-forge numpy scipy h5py
+  - conda install --yes gcc
+  - conda install --yes -c conda-forge scipy h5py fftw
 
 script:
   ########################################################
