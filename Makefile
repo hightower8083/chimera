@@ -1,6 +1,7 @@
 F90 = f2py
 PGM = fimera
 FFT = $(CONDA_PREFIX)
+PY_VERSION = $(shell python -c 'import platform; print(platform.python_version()[:3])')
 
 SRC_common = ./f90/fb_io.f90              ./f90/fb_math.f90         \
              ./f90/fb_math_env.f90        ./f90/grid_deps.f90       \
@@ -53,8 +54,12 @@ clean :
            ./doc/.ipynb_checkpoints ./.DS_Store
 
 install :
-	cp -r ../chimera $(CONDA_PREFIX)/lib/python3.6/site-packages/
+	rsync -aP --exclude='.*' ../chimera $(CONDA_PREFIX)/lib/python$(PY_VERSION)/site-packages/
 
 uninstall :
-	rm -rf $(CONDA_PREFIX)/lib/python3.6/site-packages/chimera
+	rm -rf $(CONDA_PREFIX)/lib/python$(PY_VERSION)/site-packages/chimera
+
+list :
+	ls $(CONDA_PREFIX)/lib/python$(PY_VERSION)/site-packages/chimera
+
 
