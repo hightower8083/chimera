@@ -16,19 +16,19 @@ before_install:
   # Create a virtual environment with the right version of python
   - conda create -n testing python=$TRAVIS_PYTHON_VERSION --yes
   - source activate testing
+  - export CONDA_PREFIX=$HOME/miniconda2/envs/testing/
 
 install:
-  - conda install --yes -c conda-forge numpy scipy h5py fftw
+  - conda install --yes -c conda-forge gcc numpy scipy h5py fftw
 
-addons:
-  apt:
-    packages:
-      - gfortran
+# addons:
+#   apt:
+#     packages:
+#       - gfortran
 
 script:
   ########################################################
   # build
-  - export CONDA_PREFIX=$HOME/miniconda2/envs/testing/
   - make
   # run examples
   - export OMP_NUM_THREADS=4
