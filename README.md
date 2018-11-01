@@ -41,7 +41,12 @@ make clean
 
 ## Running
 
-To run CHIMERA in multiprocessor mode specify the OMP_NUM_THREADS variable. For more information see demos in ./doc/
+To run CHIMERA in multiprocessor mode specify the OMP_NUM_THREADS variable. 
+
+For more information see demos in ./doc/
+
+
+## References
 
 \[[1]\] Igor A. Andriyash, Rémi Lehe and Agustin Lifschitz, *Laser-plasma interactions with a Fourier-Bessel particle-in-cell method*, Physics of Plasmas **23**, 033110 
 (2016)
