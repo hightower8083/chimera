@@ -33,7 +33,7 @@ make install
 make uninstall
 make clean
 ```
-- optionally, to eneble exporting synchrotron radiation data to VTK format you may install Mayavi (for `tvtk` api):
+- optionally, to enable export of synchrotron radiation data to VTK format install Mayavi (for `tvtk` api):
 ```
 conda install vtk
 pip install mayavi
