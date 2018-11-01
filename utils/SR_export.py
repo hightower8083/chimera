@@ -2,13 +2,23 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from tvtk.api import tvtk, write_data
 
-def ExportToVTK(sr_calc_far, filter=None, filename='spectrum_total'):
+def ExportToVTK( sr_calc_far, filter=None, filename='spectrum_total',
+                 project=False, lambda0_um=1 ):
 
-    omega, theta, phi = sr_calc_far.Args['omega'], sr_calc_far.Args['theta'], sr_calc_far.Args['phi'], 
-    
+    omega, theta, phi = sr_calc_far.Args['omega'], sr_calc_far.Args['theta'], sr_calc_far.Args['phi']
     phi = np.r_[phi, 2*np.pi]
-    vals = np.concatenate((sr_calc_far.Data['Rad'], sr_calc_far.Data['Rad'][:,:,[0]]), 
-                      axis=-1)
+
+    if project is False:
+        vals = sr_calc_far.Data['Rad']
+        scalar_name = 'spectrum'
+    else:
+        vals = sr_calc_far.get_spot( chim_units=False, lambda0_um=lambda0_um )
+        vals = vals[None, :, :]
+        omega = omega[[-1]]
+        filename += '_proj'
+        scalar_name = 'spectrum_proj'
+
+    vals = np.concatenate( (vals, vals[:, :, [0]]), axis=-1 )
 
     if filter is not None:
         vals = gaussian_filter(vals, filter)
@@ -29,7 +39,7 @@ def ExportToVTK(sr_calc_far, filter=None, filename='spectrum_total'):
                               points=np.vstack((x.ravel(),y.ravel(),z.ravel())).T)
     
     spc_vtk.point_data.scalars = vals.flatten()
-    spc_vtk.point_data.scalars.name = 'spectrum'
+    spc_vtk.point_data.scalars.name = scalar_name
     
     write_data(spc_vtk, filename)
     
