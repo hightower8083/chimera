@@ -24,7 +24,8 @@ addons:
       - gfortran
 
 install:
-  - conda install --yes numpy scipy h5py fftw
+  - conda install --yes numpy scipy h5py
+  - conda install --yes -c conda-forge fftw
 
 script:
   ########################################################
