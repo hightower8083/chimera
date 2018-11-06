@@ -18,9 +18,13 @@ before_install:
   - source activate testing
   - export CONDA_PREFIX=$HOME/miniconda2/envs/testing/
 
+addons:
+  apt:
+    packages:
+      - gfortran
+
 install:
-  - conda install --yes gcc
-  - conda install --yes -c conda-forge scipy h5py fftw
+  - conda install --yes numpy scipy h5py fftw
 
 script:
   ########################################################
